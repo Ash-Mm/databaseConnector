@@ -17,12 +17,17 @@ const allowedOrigins = [
     'http://127.0.0.1:5500', // For local development (VS Code Live Server)
     'http://localhost:5000', // For local development (if frontend served from here)
     process.env.FRONTEND_MAIN_URL, // e.g., https://hortimed-prima.org
-    process.env.FRONTEND_ADMIN_URL // e.g., https://www.admin.hortimed-prima.com or https://www.admin.hortimed-prima.org
-];
+    process.env.FRONTEND_ADMIN_URL // e.g., https://www.admin.hortimed-prima.com
+].filter(Boolean); // Use .filter(Boolean) to remove any undefined/null entries if env vars are missing
 
 app.use(cors({
     origin: function (origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) { // Allow no origin (e.g., Postman) and allowed origins
+        // console.log('Incoming origin:', origin); // Temporarily add for debugging on Render logs
+        // console.log('Allowed origins:', allowedOrigins); // Temporarily add for debugging on Render logs
+
+        // Allow requests with no origin (e.g., from Postman, or certain browser scenarios for same-origin)
+        // or if the origin is explicitly in our allowed list
+        if (!origin || allowedOrigins.includes(origin)) {
             return callback(null, true);
         }
         const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
