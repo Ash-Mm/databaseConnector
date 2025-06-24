@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Admin Panel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://www.hortimed-prima.org/en/css/admin.css">
+</head>
+<body>
+    <div class="container">
+        <h1>News Admin Panel</h1>
+
+        <div id="login-section">
+            <h2>Admin Login</h2>
+            <div class="form-group">
+                <label for="password">Admin Password:</label>
+                <input type="password" id="password" required>
+            </div>
+            <button class="btn" id="login-button">Login</button>
+            <p id="login-message" class="error"></p>
+        </div>
+
+        <div id="admin-content-section" style="display: none;">
+            <button class="btn btn-secondary" style="float: right; width: auto; margin-top: 0;" onclick="logout()">Logout</button>
+            <h2><span id="form-mode-title">Create New</span> Article</h2>
+            <input type="hidden" id="article-id">
+
+            <div id="form-message" class="success" style="display: none;"></div>
+            <div id="form-error" class="error" style="display: none;"></div>
+
+            <form id="article-form">
+                <div class="form-group">
+                    <label for="title">Title:</label>
+                    <input type="text" id="title" required placeholder="Enter article title">
+                </div>
+                <div class="form-group">
+                    <label for="content">Content:</label>
+                    <textarea id="content" required placeholder="Write your article content here..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="newsDate">News Date:</label>
+                    <input type="date" id="newsDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="image">Image (Optional):</label>
+                    <input type="file" id="image" accept="image/*">
+                    <div id="current-image-preview" class="media-preview" style="display: none;"></div>
+                </div>
+                <div class="form-group">
+                    <label for="video">Video (Optional):</label>
+                    <input type="file" id="video" accept="video/*">
+                    <div id="current-video-preview" class="media-preview" style="display: none;"></div>
+                </div>
+                <button class="btn" id="submit-btn">Create Article</button>
+                <button class="btn btn-secondary" id="cancel-edit-btn" style="display: none;">Cancel Edit</button>
+            </form>
+            <hr style="margin-top: 40px; margin-bottom: 40px;">
+
+            <h2>Existing Articles</h2>
+            <div id="news-list">
+                </div>
+            <div class="pagination">
+                <button id="prev-page">Previous</button>
+                <span id="page-info">Page 1 of 1</span>
+                <button id="next-page">Next</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.hortimed-prima.org/en/js/admin.js"></script>
+</body>
+</html>

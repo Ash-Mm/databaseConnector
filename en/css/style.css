@@ -1,0 +1,1186 @@
+/* Global styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --primary-color: #4361ee;
+    --primary-light-color: #e0e7fa;
+    --text-color: #333;
+    --text-color-light: #333333c2;
+    --bg-color: #f8f9fa;
+    --bg-color-dark: #343a40;
+    --white-color: #fff;
+    --light-gray-accent: #adaeae;
+    --max-content-width: 1200px;
+    --main-topic-content-width: 1200px;
+    --divider-border-color: #a3a3a3;
+    --h2-color: rgb(0, 83, 4);
+    --navbar: rgb(221, 255, 179);
+    --page2-color: rgb(240, 255, 222);
+}
+
+body {
+    background: white;
+    color: var(--text-color);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Layout */
+.container {
+    max-width: var(--max-content-width);
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+/* Typography */
+p1, p2, p {
+    font-family: sans-serif;
+}
+h1, h2, h3 { line-height: 1.2; font-family: serif; }
+h1 {
+    font-size: 3rem;
+    color: var(--text-color);
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+h2 {
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+.section-tagline {
+    font-size: 1.7rem;
+    /* Removed line-height: 0; which would hide the text */
+    text-align: center;
+    margin-bottom: 1rem;
+}
+.section-description {
+    font-size: 1.2rem;
+    line-height: 1.8;
+    margin-bottom: 1.5rem;
+}
+
+/* --- Header & Navigation Styles --- */
+header {
+    background-image: linear-gradient(to right,white,var(--navbar)  );
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1000;
+    padding: 0.6rem 0;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+}
+
+.nav-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: var(--main-topic-content-width);
+    margin: 0 auto;
+    padding: 0 1rem;
+    position: relative;
+}
+
+.logo {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    text-decoration: none;
+}
+.logo img {
+    height: 60px;
+    width: auto;
+    display: block;
+}
+
+/* Hide mobile toggle by default - will be shown by JS when needed */
+.mobile-menu-toggle {
+    display: none;
+}
+
+/* Show regular navigation by default (desktop) */
+.main-nav {
+    display: block;
+}
+
+.main-nav ul {
+    display: flex;
+    gap: 1.5rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.nav-item {
+    position: relative;
+    padding: 0.5rem 0;
+}
+
+.nav-link {
+    text-decoration: none;
+    color: var(--text-color);
+    font-weight: 700;
+    font-size: 1rem;
+    padding: 0.5rem 0.75rem;
+    transition: all 0.3s;
+    display: block;
+    line-height: 1.3;
+}
+
+.nav-link:hover {
+    color: var(--primary-color);
+}
+
+/* Hide dropdown toggle buttons by default on desktop */
+.dropdown-toggle-btn {
+    display: none;
+}
+
+/* Desktop Dropdown Styles */
+.dropdown > .nav-link::after {
+    display: none; /* Explicitly hide the pseudo-element on desktop */
+}
+
+.dropdown {
+    position: relative;
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: calc(100% + 0.7rem); /* Adjusted for a more standard dropdown position */
+    left: -0.5rem; /* This was not in the second code block, so it remains */
+    background-color: var(--page2-color);
+    min-width: 160px; /* Changed from 180px to match the second block */
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2); /* Changed to match the second block */
+    border-radius: 4px;
+    opacity: 0; /* This was not in the second code block, so it remains */
+    visibility: hidden; /* This was not in the second code block, so it remains */
+    z-index: 1000;
+    display: flex; /* This was not in the second code block, so it remains */
+    flex-direction: column; /* This was not in the second code block, so it remains */
+    list-style-type: none; /* This was not in the second code block, so it remains */
+    justify-content: center; /* This was not in the second code block, so it remains */
+    transition: opacity 0.3s ease, visibility 0.3s ease; /* This was not in the second code block, so it remains */
+}
+
+.dropdown:hover .dropdown-menu {
+    max-height: 500px; /* IMPORTANT: This needs to be a value *larger than the max height* the menu will ever be */
+    opacity: 1;
+    visibility: visible;
+    /* Remove the visibility transition delay when active */
+    transition: max-height 0.3s ease-out, opacity 0.3s ease-out, visibility 0s linear 0s;
+}
+
+.dropdown-link {
+    display: block;
+    padding: 0 1rem 1rem 1rem; /* Changed from 0.5rem 1.25rem to match the second block */
+    color: var(--text-color); /* Changed from var(--text-color-light) to match the second block */
+    font-size: 0.85rem; /* This was not in the second code block, so it remains */
+    text-decoration: none;
+    white-space: nowrap;
+    border-radius: 0; /* This was not in the second code block, so it remains */
+    transition: all 0.2s; /* This was not in the second code block, so it remains */
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1); /* This was not in the second code block, so it remains */
+    text-align: left; /* This was not in the second code block, so it remains */
+
+    
+}
+
+.dropdown-link:hover {
+    color: var(--primary-color);
+}
+.dropdown-menu li:first-child .dropdown-link {
+    padding-top: 1rem;
+}
+.dropdown-menu li:last-child .dropdown-link {
+    border-bottom: none;
+}
+
+/* Hero */
+.hero {
+    height: calc(100vh - 60px);
+    position: relative;
+    margin-top: 60px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    text-align: center;
+}
+.hero-background-slider {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: -50%;
+    z-index: -1;
+}
+.hero-bg-image {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 1.5s ease-in-out;
+    filter: brightness(0.7) blur(2px);
+}
+.hero-bg-image.active { opacity: 1; }
+.hero-content {
+    background: rgba(0,0,0,0.2);
+    padding: 2rem;
+    border-radius: 8px;
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+}
+.hero-logo {
+    width: 500px;
+    height: auto;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+.hero-content h1 {
+    color: var(--white-color);
+    margin-bottom: 1rem;
+}
+.prima-logo {
+    height: 80px;
+    width: auto;
+    margin-top: 1rem;
+}
+.hero-buttons-container {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+.hero-button {
+    padding: 12px 30px;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 1.1rem;
+    transition: all 0.3s;
+    display: inline-block;
+    text-align: center;
+}
+.hero-button-primary {
+    background: var(--primary-color);
+    color: white;
+    border: 2px solid var(--primary-color);
+}
+.hero-button-outline {
+    background: transparent;
+    border: 1px solid var(--white-color);
+    color: var(--white-color);
+}
+.hero-button-primary:hover {
+    background: #3a52cc;
+    border-color: #3a52cc;
+}
+.hero-button-outline:hover {
+    background: white;
+    color: var(--text-color);
+}
+
+/* Partner Logos */
+.partner-logos {
+    padding: 2rem 0;
+    background: var(--page2-color);
+    text-align: center;
+}
+.partner-logos-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+.partner-logo-link img {
+    height: 60px;
+    width: auto;
+    max-width: 150px;
+    object-fit: contain;
+    filter: grayscale(100%);
+    transition: all 0.3s ease;
+}
+.partner-logo-link:hover img {
+    transform: scale(1.1);
+    filter: grayscale(0%);
+}
+
+/* Content Blocks */
+.project-block {
+    padding: 2rem 1rem;
+    background-image: linear-gradient(var(--page2-color), white);
+}
+.project-block .container {
+    margin-bottom: 4rem;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+.content-block-image {
+    width: 70%;
+    max-width: 600px;
+    height: auto;
+    margin: 5rem 0 2rem;
+}
+.project-block .content-block {
+    padding: 1.7rem;
+    margin-top: 2rem;
+    max-width: 700px;
+}
+.project-block .content-block h1  { 
+    text-align: left;
+    color: var(--h2-color)
+ }
+.project-block .content-block p {
+    font-size: 1.1rem;
+    line-height: 1.5;
+    text-align: justify;
+    margin-bottom: 1.5rem;
+}
+
+/* Info Block */
+.info-block {
+    padding-top: 10rem;
+    background-image: linear-gradient(white, var(--page2-color));
+    text-align: center;
+}
+.info-block .container {
+    max-width: var(--max-content-width);
+    margin: auto;
+    position: relative;
+
+}
+.info-cover-image-content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+}
+.info-cover-image-content h1 {
+    position: absolute;
+    color: var(--white-color);
+    font-size: 2.5rem;
+    z-index: 1;
+}
+.info-cover-image {
+    width: 100%;
+    height: 250px;
+    margin-bottom: 2rem;
+    object-fit: cover;
+    position: absolute;
+    z-index: -1;
+}
+.info-container {
+    padding: 6rem 0;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    text-align: center;
+    gap: 10rem;
+}
+.info-content-image {
+    width: 100%;
+    max-width: 400px;
+    height: auto;
+    margin-bottom: 2rem;
+    padding-top: 9rem;
+}
+.info-content h1 { color: rgb(0, 129, 6); }
+.info-content-table {
+    width: 100%;
+    max-width: 800px;
+    text-align: justify;
+}
+th, td { padding: 15px; }
+th {
+    color: rgb(0, 129, 6);
+    font-weight: 700;
+}
+td {
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+.objectives-block {
+    padding: 4rem 1rem;
+    background-image: linear-gradient(var(--page2-color), white);
+    text-align: center;
+}
+.objectives-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+
+}
+.objectives-content h1 {
+    color: rgb(0, 83, 4);
+    margin: 0 auto;
+    text-align: center;
+    margin-bottom: 2rem;
+}
+.objectives-content .section-description {
+    font-size: 1.2rem;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+    text-align: justify;
+}
+.objectives-compound {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+    align-items: stretch;
+}
+.objectives-item {
+    background: #c5c5c5;
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 280px;
+    max-width: 220px;
+    text-align: center;
+    gap: 1rem; /* Use gap for consistent spacing */
+}
+.objectives-item h2 {
+    font-size: 1.35rem;
+    color: rgb(0, 83, 4);
+    /* margin-bottom: 0.5rem; */ /* Removed for consistent spacing via gap */
+    text-align: center;
+}
+.objectives-item p {
+    font-size: 1.1rem;
+    line-height: 1.3;
+    /* margin-bottom: 1rem; */ /* Removed for consistent spacing via gap */
+    order: 1; /* This moves the paragraph to the end */
+}
+.objectives-image {
+    width: 100%;
+    max-width: 200px;
+    height: 100px;
+    /* margin-bottom: 1rem; */ /* Removed for consistent spacing via gap */
+    align-self: center;
+    border-radius: 8px;
+}
+
+/* Project Block */
+.work-plan {
+    padding: 4rem 1rem;
+    background-image: linear-gradient(white, var(--page2-color));
+    text-align: center;
+}
+.work-plan .container h1 { color: rgb(0, 83, 4); }
+.work-plan .container .section-description { text-align: justify; }
+.project-objectives {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+}
+.work-plan-item {
+    background: var(--white-color);
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    align-items: flex-start;
+    flex: 0 1 calc(33.333% - 1rem);
+    min-width: 280px;
+    color: var(--text-color);
+    opacity: 0;
+    transform: translateY(15px);
+    transition: all 0.5s ease-out;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+.work-plan-item.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+.work-plan-item-content {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    padding-left: 1rem;
+    text-align: left;
+}
+.work-plan-item-content h2 {
+    font-size: 1.2rem;
+    margin-bottom: 0.25rem;
+}
+.work-plan-item-content p {
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+/* Demo Sites */
+.demo-sites {
+    padding: 4rem 1rem;
+    background-image: linear-gradient(var(--page2-color), white);
+    text-align: center;
+}
+.demo-sites h1 {
+    color: rgb(0, 83, 4);
+    margin-bottom: 2rem;
+}
+.demo-sites-img-holder {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+}
+.demo-sites-image {
+    width: 100%;
+    max-width: 500px;
+    height: auto;
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Latest News Block styles */
+.latest-news-block {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    margin-top: 20px; /* Add some space above it if needed */
+}
+.button-container {
+    display: flex;
+    justify-content: center;
+}
+.news-link-button {
+    margin-top: 1rem;
+    background: var(--primary-color);
+    color: white;
+    border: 2px solid var(--primary-color);
+    padding: 0.5rem;
+    text-decoration: none;
+
+}
+
+.latest-news-block h2 {
+    font-size: 1.5em;
+    color: #333;
+    margin-top: 0;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #f0f0f0; /* Subtle separator for the heading */
+}
+
+/* Container for individual latest news items */
+.latest-news-container {
+    display: flex; /* Ensures items arrange themselves */
+    flex-direction: column; /* Stacks items vertically */
+}
+
+.latest-news-item {
+    display: flex; /* Arrange thumbnail and content side-by-side */
+    align-items: flex-start; /* Align items to the top (important for content stacking) */
+    gap: 15px; /* Space between thumbnail and text */
+    padding: 15px 0; /* Vertical padding for each item */
+    border-bottom: 1px dashed #e0e0e0; /* Dashed separator between items */
+    text-decoration: none; /* Remove underline from link */
+    color: #333; /* Default text color */
+    transition: background-color 0.2s ease; /* Smooth hover effect */
+}
+
+.latest-news-item:last-child {
+    border-bottom: none; /* No border for the last item */
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.latest-news-item:hover {
+    background-color: #f9f9f9; /* Light background on hover */
+    color: #007bff; /* Change text color on hover */
+}
+
+/* Thumbnail styling */
+.latest-news-thumbnail {
+    width: 80px; /* Fixed width for thumbnail */
+    height: 80px; /* Fixed height for thumbnail */
+    object-fit: cover; /* Ensures image covers the area without distortion */
+    border-radius: 6px; /* Slightly rounded corners for the thumbnail */
+    flex-shrink: 0; /* Prevent thumbnail from shrinking */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1); /* Subtle shadow for depth */
+}
+
+/* Content area next to thumbnail */
+.latest-news-content {
+    display: flex;
+    flex-direction: column; /* Stack title, snippet, and date vertically */
+    flex-grow: 1; /* Allow content to take remaining space */
+}
+
+.latest-news-content h4 {
+    font-size: 1.1em; /* Adjust font size */
+    margin-top: 0;
+    margin-bottom: 5px;
+    line-height: 1.4;
+    color: inherit; /* Inherit color from parent (.latest-news-item a:hover) */
+    display: -webkit-box; /* For multi-line ellipsis */
+    -webkit-line-clamp: 2; /* Limit to 2 lines */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.latest-news-snippet {
+    font-size: 0.9em;
+    color: #555;
+    margin-bottom: 8px;
+    line-height: 1.5;
+    display: -webkit-box; /* For multi-line ellipsis */
+    -webkit-line-clamp: 2; /* Limit to 2 lines */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.latest-news-date {
+    font-size: 0.8em;
+    color: #777;
+    text-align: right; /* Align date to the right within its column */
+    width: 100%; /* Ensure it takes full width of its column */
+    margin-top: auto; /* Pushes the date to the bottom if content is short */
+}
+
+/* Responsive adjustments if needed for smaller screens */
+@media (max-width: 768px) {
+    .latest-news-item {
+        flex-direction: column; /* Stack image and content vertically on small screens */
+        align-items: center; /* Center items when stacked */
+        text-align: center;
+        gap: 10px;
+    }
+    .latest-news-thumbnail {
+        margin-bottom: 10px; /* Add space below image when stacked */
+    }
+    .latest-news-info {
+        align-items: center;
+    }
+    .latest-news-date {
+        text-align: center; /* Center date on small screens */
+    }
+}
+
+
+
+/*------------------------------------*\
+  #Footer Styles
+\*------------------------------------*/
+.footer {
+    color: black;
+    margin-top: auto;
+    width: 100%;
+}
+
+.footer-top {
+    background-image: linear-gradient(white, var(--page2-color));
+    gap: 1rem;
+    padding: 0.5rem 0;
+}
+
+.footer-top-container {
+    align-items: left;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5rem;
+    justify-content: justify;
+    margin-left: auto;
+    margin-right: auto;
+    max-width: var(--max-content-width);
+    padding: 0 1rem;
+}
+.footer-top-content {
+    flex: 1;
+    max-width: 700px;
+    min-width: 280px;
+    text-align: left;
+}
+.footer-top-content h1 {
+    color: rgb(0, 0, 0);
+    font-size: 2rem;
+    margin-bottom: 0.3rem;
+    text-align: left;
+}
+.footer-top-content p {
+    line-height: 1.5;
+    font-size: 0.8rem;
+}
+
+
+.logo_image1 {
+    margin: 1rem 1rem 2rem 1rem;
+    max-width: 80px;
+}
+
+.logo_image2 {
+    margin: 0rem 0rem 2.7rem 0rem;
+    max-width: 80px;
+}
+
+.contact {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    max-width: 400px;
+    min-width: 280px;
+    text-align: left;
+}
+.contact-containter {
+ 
+}
+.contact-content {
+    gap: 1rem;
+}
+.contact-content h1 {
+    color: rgb(0, 0, 0);
+    font-size: 2rem;
+    margin-bottom: 0.3rem;
+    text-align: left;
+}
+.contact-content p {
+    padding-top: 6.5rem;
+    font-size: 0.8rem;
+}
+.social-links {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: auto;
+}
+
+.social-logos {
+    height: 40px;
+    transition: transform 0.3s;
+    width: 40px;
+}
+
+.social-logos:hover {
+    transform: scale(1.1);
+}
+
+
+
+
+.footer-bottom {
+    background-image: linear-gradient(var(--page2-color), var(--navbar));
+    padding: 1.1rem 0;
+    width: 100%;
+}
+
+.footer-bottom h1 {
+    color: rgb(0, 0, 0);
+    font-size: 1.5rem;
+}
+
+.footer-bottom img {
+    display: block;
+    margin: 0 auto;
+    max-width: 80px;
+}
+
+
+
+.copyright {
+    font-size: 0.8rem;
+    margin-top: 0rem;
+    text-align: center;
+}
+
+/* Responsive Design for smaller desktops/tablets (up to 992px) */
+@media (max-width: 992px) {
+    .nav-container {
+        padding: 0 1.5rem; /* More padding for tablet */
+    }
+    .project-block .container {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    .project-block .content-block h1 {
+        text-align: center;
+    }
+    .content-block-image {
+        width: 80%;
+        margin: 2rem 0;
+    }
+    .info-container {
+        flex-direction: column;
+        gap: 3rem;
+        padding: 3rem 0;
+    }
+    .info-content-image {
+        padding-top: 2rem;
+        max-width: 300px;
+    }
+    .info-block {
+        padding-top: 5rem;
+    }
+    .partner-logos-container {
+        gap: 4rem;
+    }
+}
+
+/* Responsive Design for Mobile Devices (up to 768px) */
+@media (max-width: 768px) {
+    /* Typography adjustments for smaller screens */
+    h1 { font-size: 2.5rem; }
+    h2 { font-size: 1.6rem; }
+    .section-tagline { font-size: 1.5rem; }
+    .section-description { font-size: 1.1rem; }
+
+    /* Mobile Menu Toggle Button (Hamburger) */
+    .mobile-menu-toggle {
+        display: flex; /* Always display flex within this media query for styling */
+        flex-direction: column;
+        justify-content: space-around;
+        align-items: center;
+        width: 44px; /* Button size */
+        height: 44px;
+        padding: 0.25rem;
+        background: none;
+        border: none;
+        color: var(--text-color);
+        cursor: pointer;
+        z-index: 1005; /* Above everything */
+    }
+
+    .hamburger-line {
+        display: block;
+        width: 25px; /* Line width */
+        height: 3px;  /* Line thickness */
+        background-color: var(--text-color);
+        border-radius: 3px;
+        transition: all 0.3s ease-in-out;
+        z-index: 1005; /* Above everything */;
+    }
+
+    /* Hamburger animation when menu is active */
+    .mobile-menu-toggle[aria-expanded="true"] .hamburger-line:nth-child(1) {
+        transform: translateY(8px) rotate(45deg);
+    }
+    .mobile-menu-toggle[aria-expanded="true"] .hamburger-line:nth-child(2) {
+        opacity: 0;
+    }
+    .mobile-menu-toggle[aria-expanded="true"] .hamburger-line:nth-child(3) {
+        transform: translateY(-8px) rotate(-45deg);
+    }
+
+    /* Show dropdown toggle buttons only in mobile view */
+    .dropdown-toggle-btn {
+        display: flex; /* Show the toggle button on mobile */
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        margin-left: 0.5rem; /* Space between text and arrow */
+        color: var(--text-color); /* Ensure visibility */
+        font-size: 1.2rem; /* Adjust icon size if needed */
+        transition: transform 0.3s ease;
+        border: #00000033 1px solid;
+    }
+
+    .dropdown.active .dropdown-toggle-btn {
+        transform: rotate(180deg); /* Rotate arrow when dropdown is active */
+    }
+
+    /* Slide-in Menu Panel */
+    .main-nav {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 280px; /* Adjust width as needed */
+        max-width: 80vw;
+        height: 100vh;
+        background: var(--white-color);
+        box-shadow: -3px 0 10px rgba(0,0,0,0.15);
+        transform: translateX(100%); /* Initially off-screen */
+        transition: transform 0.3s ease-in-out;
+        z-index: 1001; /* Above content */
+        padding: 1rem;
+        padding-top: 85px; /* Space for fixed header (approx 60px logo + 2*0.6rem padding) */
+        overflow-y: auto; /* Scroll if content overflows */
+    }
+
+    .main-nav.active {
+        transform: translateX(0); /* Slide in */
+    }
+         /* Mobile dropdowns */
+    .main-nav .nav-item.dropdown .dropdown-menu {
+        display: none;
+        /* Other styling for dropdown menu */
+    }
+
+    .main-nav .nav-item.dropdown.active .dropdown-menu {
+        display: block; /* Or flex, depending on your layout */
+    }
+
+    /* Styles for the navigation list within the mobile panel */
+    .main-nav ul {
+        display: flex;
+        flex-direction: column;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        width: 100%;
+        position: static; /* No longer absolute */
+        box-shadow: none; /* Shadow is on .main-nav */
+        background: transparent; /* Background is on .main-nav */
+    }
+
+    /* Make the <li> (nav-item dropdown) a flex container on mobile */
+    .main-nav .nav-item.dropdown {
+        display: flex;             /* Makes <a> and <button> sit on the same line */
+        align-items: center;       /* Vertically aligns <a> and <button> */
+        flex-wrap: wrap;           /* Allows .dropdown-menu (the <ul>) to wrap to the next line */
+        width: 100%; /* Ensure it takes full width for flex distribution */
+        border-bottom: 1px solid #eee; /* Separator for top-level dropdown items */
+    }
+
+    /* General nav item styling */
+    .main-nav ul li {
+        text-align: left; /* Align text left in sidebar */
+        border-bottom: 1px solid #eee; /* Separator for non-dropdown nav items */
+    }
+    .main-nav ul li:last-child {
+        border-bottom: none; /* No border for the last item */
+    }
+    /* Override border for .nav-item.dropdown if it's the last child */
+    .main-nav .nav-item.dropdown:last-child {
+        border-bottom: none;
+    }
+
+
+    /* Hiding the old ::after arrow on main nav links that are dropdowns,
+       as the toggle button now handles it. */
+    .main-nav .dropdown > .nav-link::after {
+        display: none;
+    }
+
+    /* Styles for all main navigation links */
+    .nav-link {
+        display: block; /* Default block, also works as a flex item */
+        padding: 0.9rem 0.5rem; /* Adjust padding for sidebar */
+        color: var(--text-color);
+        text-decoration: none;
+        font-weight: 600;
+        flex-grow: 1; /* Allow the link to take available space within the flex li */
+    }
+
+    /* Hover states for all links in the mobile panel */
+    .main-nav ul li > .nav-link:hover, /* Hover for top-level links (including those with dropdowns) */
+    .main-nav .dropdown-menu .dropdown-link:hover { /* Hover for submenu links */
+        background-color: #f0f0f0;
+        color: var(--primary-color);
+    }
+
+    /* Dropdown styling within the mobile menu (accordion style) */
+    .dropdown .dropdown-menu {
+        position: static; /* Stack naturally in the flow */
+        box-shadow: none;
+        min-width: 100%;
+        padding: 0 0 0 1rem; /* Indent submenu items */
+        background-color: #f8f8f8; /* Slightly different background for submenu */
+        list-style: none;
+        max-height: 0; /* Hidden by default for accordion effect */
+        overflow: hidden;
+        opacity: 0; /* Also fade for smoother transition */
+        transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out, padding-top 0.3s ease-in-out, padding-bottom 0.3s ease-in-out;
+        flex-basis: 100%; /* Important: makes the submenu take full width and wrap below link/button */
+    }
+    .dropdown.active .dropdown-menu {
+        max-height: 500px; /* Or a suitable max height to reveal content */
+        opacity: 1;
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
+
+    /* Styling for individual submenu links */
+    .dropdown-link {
+        padding: 0.6rem 0.5rem 0.6rem 1.5rem; /* Indented padding for submenu items */
+        text-align: left;
+        display: block;
+        color: var(--text-color-light); /* Distinct color for submenu items */
+        font-size: 0.9rem;
+    }
+
+    /* General layout adjustments for 768px and below */
+    .hero { height: auto; min-height: calc(100vh - 60px); padding: 2rem 0; }
+    .hero-content { padding: 1.5rem; max-width: 90%; }
+    .hero-logo { width: 100%; max-width: 350px; }
+    .hero-buttons-container { flex-direction: column; gap: 0.75rem; width: 100%; }
+    .hero-button { width: 100%; }
+
+    .partner-logos-container { gap: 2rem; }
+    .partner-logo-link img { height: 40px; }
+
+    .content-block-image { width: 90%; max-width: 400px; }
+
+    .objectives-compound { flex-direction: column; align-items: center; }
+    .objectives-item { max-width: 320px; width: 90%; }
+
+    .project-objectives { flex-direction: column; align-items: center; }
+    .workPlan-item { flex: 1 1 100%; max-width: 400px; }
+
+    /* General layout adjustments for 768px and below */
+    .footer-top .container {flex-direction: column; gap: 2rem; text-align: left;}
+    .footer-content,
+    .contact {text-align: left;}
+    .social-links {justify-content: center; width: 100%;}
+    .info-cover-image-content h1 { font-size: 2rem; }
+    .social-links { width: 100%; }
+    .info-content-table { font-size: 0.9rem; }
+    th, td { padding: 10px; }
+    .info-container {
+        padding: 8rem 1rem;
+        flex-direction: column;
+        align-items: center;
+    }
+}
+
+/* Specific footer responsive rules (from your mobile.css that overrides style.css default) */
+@media (max-width: 992px) {
+    .footer-top-container {
+        /* On medium screens, allow items to wrap but keep some space */
+        justify-content: center; /* Center align items when they start wrapping */
+        gap: 3rem; /* A moderate gap for medium screens */
+    }
+
+    .footer-top-content,
+    .contact {
+        /* Allow these sections to take more width on medium screens if needed, but still flexible */
+        flex: 1 1 45%; /* Allow two columns if space permits, roughly 45% each */
+        min-width: 300px; /* Ensure they don't get too small */
+    }
+
+    .contact .contact-content p {
+        /* Reset padding for contact content on medium screens if it was excessive */
+        padding-top: 2rem; /* Keep some top padding, but less than original 6.5rem */
+    }
+
+    .social-links {
+        /* On medium screens, keep social links aligned with contact text */
+        justify-content: flex-start;
+        margin-top: 1.5rem; /* Ensure consistent spacing */
+    }
+}
+
+@media (max-width: 768px) {
+    .footer-top {
+        padding: 1.5rem 0; /* Increase vertical padding for mobile */
+    }
+
+    .footer-top-container {
+        flex-direction: column; /* Stack disclaimer and contact vertically */
+        align-items: center; /* Center items horizontally when stacked */
+        gap: 2rem; /* Reduce gap when stacked vertically */
+        padding: 0 1rem; /* Ensure consistent horizontal padding */
+    }
+
+    .footer-top-content,
+    .contact {
+        flex: 1 1 100%; /* Take full width on small screens */
+        max-width: none; /* Remove max-width constraint for full flexibility */
+        text-align: center; /* Center text content for better mobile appearance */
+    }
+
+    .footer-top-content h1,
+    .contact h1 {
+        text-align: center; /* Center headings on mobile */
+        font-size: 1.8rem; /* Slightly smaller font for headings on mobile */
+        margin-bottom: 0.5rem; /* Adjust margin below headings */
+    }
+
+    .footer-top-content p,
+    .contact p {
+        font-size: 0.95rem; /* Slightly smaller font size for body text */
+        line-height: 1.6; /* Improve readability */
+    }
+
+    .logo-placeholder {
+        flex-direction: row; /* Keep logos in a row even on small screens */
+        justify-content: center; /* Center the logos */
+        gap: 1rem; /* Smaller gap between logos on mobile */
+        margin-bottom: 1rem; /* Adjust margin below logos */
+    }
+
+    .logo_image1,
+    .logo_image2 {
+        max-width: 70px; /* Slightly reduce logo size on mobile */
+        height: auto; /* Maintain aspect ratio */
+        margin: 0; /* Reset original margins to use flex gap */
+    }
+
+    .contact-container {
+        /* No specific changes needed here if contact content adjusts */
+    }
+
+    .contact-content p {
+        /* The original had a large padding-top, let's remove it for mobile */
+        padding-top: 0;
+        margin-top: 1rem; /* Add some space if needed after contact heading */
+    }
+
+    .social-links {
+        justify-content: center; /* Center social links on mobile */
+        margin-top: 1.5rem; /* Ensure space after contact info */
+        width: 100%; /* Take full width for centering to work */
+    }
+
+    .social-logos {
+        height: 35px; /* Slightly smaller social icons on mobile */
+        width: 35px;
+    }
+
+    .footer-bottom {
+        padding: 1.2rem 0; /* Adjust padding for bottom section on mobile */
+    }
+
+    .footer-bottom h1 {
+        font-size: 1.3rem; /* Smaller heading in bottom section */
+        margin-bottom: 0.8rem;
+    }
+
+    .footer-bottom img {
+        max-width: 90px; /* Adjust powered by logo size */
+    }
+
+    .copyright {
+        font-size: 0.85rem; /* Slightly larger copyright text for readability */
+        margin-top: 0.8rem; /* Add space above copyright */
+        padding: 0 1rem; /* Add horizontal padding */
+    }
+}
+
+
+@media (max-width: 480px) {
+    .logo_image1,
+    .logo_image2,
+    .logo_image3 {
+        max-width: 60px; /* Even smaller logos on very small screens */
+    }
+}

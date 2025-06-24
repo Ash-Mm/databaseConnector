@@ -1,0 +1,873 @@
+/*------------------------------------*\
+  #Variables
+\*------------------------------------*/
+:root {
+    --primary-color: #4361ee;
+    --primary-light-color: #e0e7fa;
+
+    --text-color: #333;
+    --text-color-light: #333333c2;
+    --h2-color: rgb(0, 83, 4);
+
+    --bg-color: #f8f9fa;
+    --bg-color-dark: #343a40;
+    --white-color: #fff;
+
+    --light-gray-accent: #adaeae;
+    --divider-border-color: #a3a3a3;
+
+    --navbar: rgb(221, 255, 179);
+    --page2-color: rgb(240, 255, 222);
+
+    --max-content-width: 1200px;
+    --main-topic-content-width: 1200px;
+}
+
+/*------------------------------------*\
+  #Base Styles
+\*------------------------------------*/
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    display: flex;
+    flex-direction: column;
+    margin: 0 auto;
+    min-height: 100vh;
+}
+
+/*------------------------------------*\
+  #Layout
+\*------------------------------------*/
+.container {
+    margin: 0 auto;
+    max-width: var(--max-content-width);
+    padding: 0 1rem;
+}
+
+/*------------------------------------*\
+  #Typography
+\*------------------------------------*/
+h1,
+h2,
+h3 {
+    line-height: 1.2;
+    font-family: serif;
+}
+
+h1 {
+    color: var(--text-color);
+    font-size: 3rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+h2 {
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+p,
+p1,
+p2 {
+    font-family: sans-serif;
+}
+
+.section-tagline {
+    font-size: 1.7rem;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.section-description {
+    font-size: 1.2rem;
+    line-height: 1.8;
+    margin-bottom: 1.5rem;
+}
+
+/*------------------------------------*\
+  #Header & Navigation
+\*------------------------------------*/
+header {
+    background-image: linear-gradient(to right, white, var(--navbar));
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+    padding: 0.6rem 0;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1000;
+}
+
+.nav-container {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    margin: 0 auto;
+    max-width: var(--main-topic-content-width);
+    padding: 0 1rem;
+    position: relative;
+}
+
+.logo {
+    color: var(--primary-color);
+    font-size: 1.2rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.logo img {
+    display: block;
+    height: 60px;
+    width: auto;
+}
+
+/* Mobile Toggle (Hidden by default) */
+.mobile-menu-toggle {
+    display: none;
+}
+
+/* Main Navigation (Desktop) */
+.main-nav {
+    display: block;
+}
+
+.main-nav ul {
+    display: flex;
+    gap: 1.5rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.nav-item {
+    padding: 0.5rem 0;
+    position: relative;
+}
+
+.nav-link {
+    color: var(--text-color);
+    display: block;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.3;
+    padding: 0.5rem 0.75rem;
+    text-decoration: none;
+    transition: all 0.3s;
+}
+
+.nav-link:hover {
+    color: var(--primary-color);
+}
+
+/* Hide dropdown toggle buttons by default on desktop */
+.dropdown-toggle-btn {
+    display: none;
+}
+
+/* Desktop Dropdown Styles */
+.dropdown > .nav-link::after {
+    display: none; /* Explicitly hide the pseudo-element on desktop */
+}
+
+.dropdown {
+    position: relative;
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: calc(100% + 0.7rem); /* Adjusted for a more standard dropdown position */
+    left: -0.5rem; /* This was not in the second code block, so it remains */
+    background-color: var(--page2-color);
+    min-width: 160px; /* Changed from 180px to match the second block */
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2); /* Changed to match the second block */
+    border-radius: 4px;
+    opacity: 0; /* This was not in the second code block, so it remains */
+    visibility: hidden; /* This was not in the second code block, so it remains */
+    z-index: 1000;
+    display: flex; /* This was not in the second code block, so it remains */
+    flex-direction: column; /* This was not in the second code block, so it remains */
+    list-style-type: none; /* This was not in the second code block, so it remains */
+    justify-content: center; /* This was not in the second code block, so it remains */
+    transition: opacity 0.3s ease, visibility 0.3s ease; /* This was not in the second code block, so it remains */
+}
+
+.dropdown:hover .dropdown-menu {
+    max-height: 500px; /* IMPORTANT: This needs to be a value *larger than the max height* the menu will ever be */
+    opacity: 1;
+    visibility: visible;
+    /* Remove the visibility transition delay when active */
+    transition: max-height 0.3s ease-out, opacity 0.3s ease-out, visibility 0s linear 0s;
+}
+
+.dropdown-link {
+    display: block;
+    padding: 0 1rem 1rem 1rem; /* Changed from 0.5rem 1.25rem to match the second block */
+    color: var(--text-color); /* Changed from var(--text-color-light) to match the second block */
+    font-size: 0.85rem; /* This was not in the second code block, so it remains */
+    text-decoration: none;
+    white-space: nowrap;
+    border-radius: 0; /* This was not in the second code block, so it remains */
+    transition: all 0.2s; /* This was not in the second code block, so it remains */
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1); /* This was not in the second code block, so it remains */
+    text-align: left; /* This was not in the second code block, so it remains */
+
+    
+}
+
+.dropdown-link:hover {
+    color: var(--primary-color);
+}
+.dropdown-menu li:first-child .dropdown-link {
+    padding-top: 1rem;
+}
+.dropdown-menu li:last-child .dropdown-link {
+    border-bottom: none;
+}
+
+
+
+/*------------------------------------*\
+  #Footer Styles
+\*------------------------------------*/
+.footer {
+    color: black;
+    margin-top: auto;
+    width: 100%;
+}
+
+.footer-top {
+    background-image: linear-gradient(white, var(--page2-color));
+    gap: 1rem;
+    padding: 0.5rem 0;
+}
+
+.footer-top-container {
+    align-items: left;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5rem;
+    justify-content: justify;
+    margin-left: auto;
+    margin-right: auto;
+    max-width: var(--max-content-width);
+    padding: 0 1rem;
+}
+.footer-top-content {
+    flex: 1;
+    max-width: 700px;
+    min-width: 280px;
+    text-align: left;
+}
+.footer-top-content h1 {
+    color: rgb(0, 0, 0);
+    font-size: 1.5rem;
+    margin-bottom: 0.3rem;
+    text-align: left;
+}
+.footer-top-content p {
+    line-height: 1.5;
+    font-size: 0.8rem;
+}
+
+
+.logo_image1 {
+    margin: 1rem 1rem 2rem 1rem;
+    max-width: 80px;
+}
+
+.logo_image2 {
+    margin: 0rem 0rem 2.7rem 0rem;
+    max-width: 80px;
+}
+
+.contact {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    max-width: 400px;
+    min-width: 280px;
+    text-align: left;
+}
+.contact-containter {
+ 
+}
+.contact-content {
+    gap: 1rem;
+}
+.contact-content h1 {
+    color: rgb(0, 0, 0);
+    font-size: 1.5rem;
+    margin-bottom: 0.3rem;
+    text-align: left;
+}
+.contact-content p {
+    padding-top: 6.5rem;
+    font-size: 0.8rem;
+}
+.social-links {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: auto;
+}
+
+.social-logos {
+    height: 40px;
+    transition: transform 0.3s;
+    width: 40px;
+}
+
+.social-logos:hover {
+    transform: scale(1.1);
+}
+
+
+
+
+.footer-bottom {
+    background-image: linear-gradient(var(--page2-color), var(--navbar));
+    padding: 1.1rem 0;
+    width: 100%;
+}
+
+.footer-bottom h1 {
+    color: rgb(0, 0, 0);
+    font-size: 1.5rem;
+}
+
+.footer-bottom img {
+    display: block;
+    margin: 0 auto;
+    max-width: 80px;
+}
+
+
+
+.copyright {
+    font-size: 0.8rem;
+    margin-top: 0rem;
+    text-align: center;
+}
+
+/*------------------------------------*\
+  #Info Block
+\*------------------------------------*/
+.info-block {
+    background-color: var(--navbar);
+    margin-top: 5.03rem;
+}
+
+.info-block .container {
+    display: flex;
+    margin: 0 auto;
+    max-width: var(--main-topic-content-width);
+    padding: 2rem 0 2rem 1.1rem;
+}
+
+.info-block .container h1 {
+    font-size: 1.5rem;
+    margin: auto 0;
+    text-align: left;
+}
+
+/*------------------------------------*\
+  #Utility & Component Styles
+\*------------------------------------*/
+/* Pagination */
+.pagination {
+    margin-top: 30px;
+    text-align: center;
+}
+
+.pagination button {
+    background-color: #007bff;
+    border: none;
+    border-radius: 5px;
+    color: white;
+    cursor: pointer;
+    font-size: 1em;
+    margin: 0 8px;
+    padding: 10px 20px;
+    transition: background-color 0.2s;
+}
+
+.pagination button:hover {
+    background-color: #0056b3;
+}
+
+.pagination button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.loading-message,
+.error-message,
+.no-articles {
+    font-size: 1.2em;
+    margin-top: 50px;
+    text-align: center;
+}
+
+.error-message {
+    color: red;
+}
+
+/* General button styles */
+.btn {
+    background-color: #007bff;
+    border: none;
+    border-radius: 5px;
+    color: white;
+    cursor: pointer;
+    font-size: 1em;
+    padding: 10px 20px;
+    transition: background-color 0.2s;
+}
+
+.btn:hover {
+    background-color: #0056b3;
+}
+
+/* Main Content Layout */
+.main-topic {
+    background-image: linear-gradient(var(--page2-color), white);
+    margin-bottom: 0rem;
+    margin-top: 0rem;
+}
+
+.main-topic .container {
+    align-items: flex-start;
+    box-sizing: border-box;
+    display: flex;
+    gap: 20px;
+    margin: 0 auto;
+    min-height: 500px;
+    max-width: var(--main-topic-content-width);
+    padding: 0 1rem;
+}
+
+.main-content {
+    box-sizing: border-sizing;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    min-height: 500px;
+    padding-bottom: 2rem;
+    padding-top: 2rem;
+}
+
+.side-content {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    margin-bottom: 7rem;
+    min-height: 500px;
+    padding-top: 2rem;
+}
+
+
+/*------------------------------------*\
+  #Responsive Design
+\*------------------------------------*/
+
+/* Smaller desktops/tablets (max-width: 992px) */
+@media (max-width: 992px) {
+    .nav-container {
+        padding: 0 1.5rem;
+    }
+
+    .project-block .container {
+        align-items: center;
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .project-block .content-block h1 {
+        text-align: center;
+    }
+
+    .content-block-image {
+        margin: 2rem 0;
+        width: 80%;
+    }
+
+    .info-container {
+        flex-direction: column;
+        gap: 3rem;
+        padding: 3rem 0;
+    }
+
+    .info-content-image {
+        max-width: 300px;
+        padding-top: 2rem;
+    }
+
+    .partner-logos-container {
+        gap: 4rem;
+    }
+}
+
+/* Mobile Devices (max-width: 768px) */
+@media (max-width: 768px) {
+    /* Typography adjustments */
+    h1 {
+        font-size: 2.5rem;
+    }
+
+    h2 {
+        font-size: 1.6rem;
+    }
+
+    .section-tagline {
+        font-size: 1.5rem;
+    }
+
+    .section-description {
+        font-size: 1.1rem;
+    }
+
+    /* Mobile Menu Toggle Button (Hamburger) */
+    .mobile-menu-toggle {
+        align-items: center;
+        background: none;
+        border: none;
+        color: var(--text-color);
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        height: 44px;
+        justify-content: space-around;
+        padding: 0.25rem;
+        width: 44px;
+        z-index: 1005;
+    }
+
+    .hamburger-line {
+        background-color: var(--text-color);
+        border-radius: 3px;
+        display: block;
+        height: 3px;
+        transition: all 0.3s ease-in-out;
+        width: 25px;
+    }
+
+    /* Hamburger animation when menu is active */
+    .mobile-menu-toggle[aria-expanded="true"] .hamburger-line:nth-child(1) {
+        transform: translateY(8px) rotate(45deg);
+    }
+
+    .mobile-menu-toggle[aria-expanded="true"] .hamburger-line:nth-child(2) {
+        opacity: 0;
+    }
+
+    .mobile-menu-toggle[aria-expanded="true"] .hamburger-line:nth-child(3) {
+        transform: translateY(-8px) rotate(-45deg);
+    }
+
+    /* Show dropdown toggle buttons only in mobile view */
+    .dropdown-toggle-btn {
+        align-items: center;
+        background: none;
+        border: none;
+        color: var(--text-color);
+        cursor: pointer;
+        display: flex;
+        font-size: 1.2rem;
+        height: 30px;
+        justify-content: center;
+        margin-left: 0.5rem;
+        padding: 0;
+        transition: transform 0.3s ease;
+        width: 30px;
+    }
+
+    .dropdown.active .dropdown-toggle-btn {
+        transform: rotate(180deg);
+    }
+
+    /* Slide-in Menu Panel */
+    .main-nav {
+        background: var(--white-color);
+        box-shadow: -3px 0 10px rgba(0, 0, 0, 0.15);
+        height: 100vh;
+        max-width: 80vw;
+        overflow-y: auto;
+        padding: 1rem;
+        padding-top: 85px;
+        position: fixed;
+        right: 0;
+        top: 0;
+        transform: translateX(100%);
+        transition: transform 0.3s ease-in-out;
+        width: 280px;
+        z-index: 1001;
+    }
+
+    .main-nav.active {
+        transform: translateX(0);
+    }
+
+    /* Styles for the navigation list within the mobile panel */
+    .main-nav ul {
+        background: transparent;
+        box-shadow: none;
+        display: flex;
+        flex-direction: column;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        position: static;
+        width: 100%;
+    }
+
+    /* Make the <li> (nav-item dropdown) a flex container on mobile */
+    .main-nav .nav-item.dropdown {
+        align-items: center;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    /* General nav item styling */
+    .main-nav ul li {
+        border-bottom: 1px solid #eee;
+        text-align: left;
+    }
+
+    .main-nav ul li:last-child {
+        border-bottom: none;
+    }
+
+    /* Override border for .nav-item.dropdown if it's the last child */
+    .main-nav .nav-item.dropdown:last-child {
+        border-bottom: none;
+    }
+
+    /* Hiding the old ::after arrow on main nav links that are dropdowns,
+       as the toggle button now handles it. */
+    .main-nav .dropdown > .nav-link::after {
+        display: none;
+    }
+
+    /* Styles for all main navigation links */
+    .nav-link {
+        color: var(--text-color);
+        display: block;
+        flex-grow: 1;
+        font-weight: 600;
+        padding: 0.9rem 0.5rem;
+        text-decoration: none;
+    }
+
+    /* Hover states for all links in the mobile panel */
+    .main-nav ul li > .nav-link:hover,
+    .main-nav .dropdown-menu .dropdown-link:hover {
+        background-color: #f0f0f0;
+        color: var(--primary-color);
+    }
+
+    /* Dropdown styling within the mobile menu (accordion style) */
+    .dropdown .dropdown-menu {
+        background-color: #f8f8f8;
+        box-shadow: none;
+        flex-basis: 100%;
+        list-style: none;
+        max-height: 0;
+        min-width: 100%;
+        opacity: 0;
+        overflow: hidden;
+        padding: 0 0 0 1rem;
+        position: static;
+        transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out, padding-top 0.3s ease-in-out, padding-bottom 0.3s ease-in-out;
+    }
+
+    .dropdown.active .dropdown-menu {
+        max-height: 500px;
+        opacity: 1;
+        padding-bottom: 0.5rem;
+        padding-top: 0.5rem;
+    }
+
+    /* Styling for individual submenu links */
+    .dropdown-link {
+        color: var(--text-color-light);
+        display: block;
+        font-size: 0.9rem;
+        padding: 0.6rem 0.5rem 0.6rem 1.5rem;
+        text-align: left;
+    }
+            /* Mobile dropdowns */
+    .main-nav .nav-item.dropdown .dropdown-menu {
+        display: none;
+        /* Other styling for dropdown menu */
+    }
+
+    .main-nav .nav-item.dropdown.active .dropdown-menu {
+        display: block; /* Or flex, depending on your layout */
+    }
+
+    /* General layout adjustments for 768px and below */
+    .footer-top .container {
+        flex-direction: column;
+        gap: 2rem;
+        text-align: left;
+    }
+
+    .footer-content,
+    .contact {
+        text-align: left;
+    }
+
+    .social-links {
+        justify-content: center;
+        width: 100%;
+    }
+
+    th,
+    td {
+        padding: 10px;
+    }
+
+    .info-container {
+        align-items: center;
+        flex-direction: column;
+        padding: 8rem 1rem;
+    }
+    .brochure-image {
+    height: 60px; /* Reduce logo height */
+    width: auto;
+    }
+}
+
+
+
+/*------------------------------------*\
+  #Footer Responsive Styles (Appended)
+  These styles specifically enhance the footer's responsiveness
+  without altering the main common.css file.
+\*------------------------------------*/
+
+/* Adjustments for tablets and smaller desktops (up to 992px) */
+@media (max-width: 992px) {
+    .footer-top-container {
+        /* On medium screens, allow items to wrap but keep some space */
+        justify-content: center; /* Center align items when they start wrapping */
+        gap: 3rem; /* A moderate gap for medium screens */
+    }
+
+    .footer-top-content,
+    .contact {
+        /* Allow these sections to take more width on medium screens if needed, but still flexible */
+        flex: 1 1 45%; /* Allow two columns if space permits, roughly 45% each */
+        min-width: 300px; /* Ensure they don't get too small */
+    }
+
+    .contact .contact-content p {
+        /* Reset padding for contact content on medium screens if it was excessive */
+        padding-top: 2rem; /* Keep some top padding, but less than original 6.5rem */
+    }
+
+    .social-links {
+        /* On medium screens, keep social links aligned with contact text */
+        justify-content: flex-start;
+        margin-top: 1.5rem; /* Ensure consistent spacing */
+    }
+}
+
+
+/* Mobile Devices (max-width: 768px) */
+@media (max-width: 768px) {
+    .footer-top {
+        padding: 1.5rem 0; /* Increase vertical padding for mobile */
+    }
+
+    .footer-top-container {
+        flex-direction: column; /* Stack disclaimer and contact vertically */
+        align-items: center; /* Center items horizontally when stacked */
+        gap: 2rem; /* Reduce gap when stacked vertically */
+        padding: 0 1rem; /* Ensure consistent horizontal padding */
+    }
+
+    .footer-top-content,
+    .contact {
+        flex: 1 1 100%; /* Take full width on small screens */
+        max-width: none; /* Remove max-width constraint for full flexibility */
+        text-align: center; /* Center text content for better mobile appearance */
+    }
+
+    .footer-top-content h1,
+    .contact h1 {
+        text-align: center; /* Center headings on mobile */
+        font-size: 1.8rem; /* Slightly smaller font for headings on mobile */
+        margin-bottom: 0.5rem; /* Adjust margin below headings */
+    }
+
+    .footer-top-content p,
+    .contact p {
+        font-size: 0.95rem; /* Slightly smaller font size for body text */
+        line-height: 1.6; /* Improve readability */
+    }
+
+    .logo-placeholder {
+        flex-direction: row; /* Keep logos in a row even on small screens */
+        justify-content: center; /* Center the logos */
+        gap: 1rem; /* Smaller gap between logos on mobile */
+        margin-bottom: 1rem; /* Adjust margin below logos */
+    }
+
+    .logo_image1,
+    .logo_image2 {
+        max-width: 70px; /* Slightly reduce logo size on mobile */
+        height: auto; /* Maintain aspect ratio */
+        margin: 0; /* Reset original margins to use flex gap */
+    }
+
+    .contact-container {
+        /* No specific changes needed here if contact content adjusts */
+    }
+
+    .contact-content p {
+        /* The original had a large padding-top, let's remove it for mobile */
+        padding-top: 0;
+        margin-top: 1rem; /* Add some space if needed after contact heading */
+    }
+
+    .social-links {
+        justify-content: center; /* Center social links on mobile */
+        margin-top: 1.5rem; /* Ensure space after contact info */
+        width: 100%; /* Take full width for centering to work */
+    }
+
+    .social-logos {
+        height: 35px; /* Slightly smaller social icons on mobile */
+        width: 35px;
+    }
+
+    .footer-bottom {
+        padding: 1.2rem 0; /* Adjust padding for bottom section on mobile */
+    }
+
+    .footer-bottom h1 {
+        font-size: 1.3rem; /* Smaller heading in bottom section */
+        margin-bottom: 0.8rem;
+    }
+
+    .footer-bottom img {
+        max-width: 90px; /* Adjust powered by logo size */
+    }
+
+    .copyright {
+        font-size: 0.85rem; /* Slightly larger copyright text for readability */
+        margin-top: 0.8rem; /* Add space above copyright */
+        padding: 0 1rem; /* Add horizontal padding */
+    }
+}
+
