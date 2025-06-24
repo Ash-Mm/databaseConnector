@@ -16,7 +16,7 @@ const app = express();
 const allowedOrigins = [
     'http://127.0.0.1:5500', // For Live Server in VS Code
     'http://localhost:5000', // For local testing if frontend and backend are on same port
-    process.env.FRONTEND_URL // The deployed frontend URL
+    process.env.FRONTEND_URL // The deployed frontend URL - IMPORTANT for CORS!
 ];
 
 app.use(cors({
@@ -41,13 +41,6 @@ if (!fs.existsSync(uploadsDir)) {
 }
 app.use('/uploads', express.static(uploadsDir));
 
-// Serve static files from the 'en' directory
-const publicDir = path.join(__dirname, 'en');
-if (!fs.existsSync(publicDir)) {
-    console.error('❌ "en" directory not found! Please ensure "en" folder exists with your HTML, CSS, JS etc.');
-    process.exit(1);
-}
-app.use(express.static(publicDir));
 
 // --- MySQL Connection Pool ---
 let pool; // Declare pool globally
@@ -460,24 +453,6 @@ app.delete('/news/:id', authenticate, async (req, res) => {
         console.error('Delete news error:', err);
         res.status(500).json({ error: 'Failed to delete news.' });
     }
-});
-
-// --- HTML Route serving (for direct URL access) ---
-app.get('/articles', (req, res) => {
-    res.sendFile(path.join(publicDir, 'articles.html'));
-});
-
-app.get('/single-article', (req, res) => {
-    res.sendFile(path.join(publicDir, 'single-article.html'));
-});
-
-app.get('/admin', (req, res) => {
-    res.sendFile(path.join(publicDir, 'admin.html'));
-});
-
-// Serve the main index/articles page for the root route
-app.get('/', (req, res) => {
-    res.sendFile(path.join(publicDir, 'articles.html'));
 });
 
 
