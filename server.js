@@ -14,19 +14,19 @@ const app = express();
 // --- Middleware ---
 
 const allowedOrigins = [
-    'http://127.0.0.1:5500', // For Live Server in VS Code
-    'http://localhost:5000', // For local testing if frontend and backend are on same port
-    process.env.FRONTEND_URL // The deployed frontend URL - IMPORTANT for CORS!
+    'http://127.0.0.1:5500', // For local development (VS Code Live Server)
+    'http://localhost:5000', // For local development (if frontend served from here)
+    process.env.FRONTEND_MAIN_URL, // e.g., https://hortimed-prima.org
+    process.env.FRONTEND_ADMIN_URL // e.g., https://www.admin.hortimed-prima.com or https://www.admin.hortimed-prima.org
 ];
 
 app.use(cors({
     origin: function (origin, callback) {
-        if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) === -1) {
-            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-            return callback(new Error(msg), false);
+        if (!origin || allowedOrigins.includes(origin)) { // Allow no origin (e.g., Postman) and allowed origins
+            return callback(null, true);
         }
-        return callback(null, true);
+        const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+        return callback(new Error(msg), false);
     },
     credentials: true
 }));
