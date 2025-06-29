@@ -22,8 +22,8 @@ const allowedOrigins = [
 
 app.use(cors({
     origin: function (origin, callback) {
-        // console.log('Incoming origin:', origin); // Temporarily add for debugging on Render logs
-        // console.log('Allowed origins:', allowedOrigins); // Temporarily add for debugging on Render logs
+        console.log('CORS Debug: Incoming origin:', origin); // <--- ADDED LOG
+        console.log('CORS Debug: Allowed origins:', allowedOrigins); // <--- ADDED LOG
 
         // Allow requests with no origin (e.g., from Postman, or certain browser scenarios for same-origin)
         // or if the origin is explicitly in our allowed list
@@ -145,6 +145,7 @@ const authenticate = (req, res, next) => {
 // --- API Routes ---
 
 app.post('/login', async (req, res) => {
+    console.log('Route hit: POST /login'); // <--- ADDED LOG
     try {
         const { password } = req.body;
         if (!password) {
@@ -183,6 +184,7 @@ app.post('/login', async (req, res) => {
 
 // Get All News (Publicly accessible) with search and pagination
 app.get('/news', async (req, res) => {
+    console.log('Route hit: GET /news'); // <--- ADDED LOG
     try {
         const { page = 1, limit = 10, search = '', latest = 'false' } = req.query;
         const offset = (parseInt(page) - 1) * parseInt(limit);
@@ -235,6 +237,7 @@ app.get('/news', async (req, res) => {
 
 // Get Single News Article (Publicly accessible)
 app.get('/news/:id', async (req, res) => {
+    console.log('Route hit: GET /news/:id'); // <--- ADDED LOG
     try {
         const newsId = req.params.id;
         const [rows] = await pool.query(`
@@ -270,6 +273,7 @@ app.post('/news',
         body('newsDate').isISO8601().toDate().withMessage('Invalid date format for Publication Date.') // Validate date
     ],
     async (req, res) => {
+        console.log('Route hit: POST /news (create)'); // <--- ADDED LOG
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
             // If validation fails, delete any uploaded files
@@ -330,6 +334,7 @@ app.put('/news/:id',
         body('newsDate').optional().isISO8601().toDate().withMessage('Invalid date format for Publication Date.') // Validate date
     ],
     async (req, res) => {
+        console.log('Route hit: PUT /news/:id (update)'); // <--- ADDED LOG
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
             // If validation fails, delete any newly uploaded files
@@ -429,6 +434,7 @@ app.put('/news/:id',
 
 // Delete News Article (Admin only)
 app.delete('/news/:id', authenticate, async (req, res) => {
+    console.log('Route hit: DELETE /news/:id'); // <--- ADDED LOG
     try {
         const newsId = req.params.id;
 
@@ -464,7 +470,7 @@ app.delete('/news/:id', authenticate, async (req, res) => {
 // --- Error Handling Middleware ---
 
 app.use((err, req, res, next) => {
-    console.error('Global error handler caught:', err.stack);
+    console.error('Global error handler caught:', err.stack); // <--- LOG ALREADY PRESENT AND GOOD
 
     if (err instanceof multer.MulterError) {
         return res.status(400).json({ error: `File upload error: ${err.message}` });
