@@ -113,14 +113,17 @@ const upload = multer({
 
 /**
  * Uploads a file buffer to Cloudinary.
- * @param {Buffer} fileBuffer - The buffer of the file.
+ * @param {object} file - The Multer file object (contains buffer and mimetype).
  * @param {string} resourceType - 'image' or 'video'.
  * @param {string} folder - Optional folder name in Cloudinary.
  * @returns {Promise<string>} The Cloudinary URL of the uploaded file.
  */
-const uploadToCloudinary = async (fileBuffer, resourceType, folder = 'hortimed-news') => {
+const uploadToCloudinary = async (file, resourceType, folder = 'hortimed-news') => { // Changed fileBuffer to file
     try {
-        const result = await cloudinary.uploader.upload(`data:${fileBuffer.mimetype};base64,${fileBuffer.toString('base64')}`, {
+        const dataUri = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`; // Access file.mimetype and file.buffer
+        console.log(`Attempting Cloudinary upload for ${resourceType}. Data URI length: ${dataUri.length}`); // Added console log
+
+        const result = await cloudinary.uploader.upload(dataUri, {
             resource_type: resourceType,
             folder: folder // Organizes uploads in Cloudinary
         });
@@ -352,10 +355,12 @@ app.post('/news',
 
             // --- UPLOAD TO CLOUDINARY ---
             if (req.files?.image?.[0]) {
-                imageUrl = await uploadToCloudinary(req.files.image[0].buffer, 'image', 'hortimed-news-images');
+                // Pass the full file object, not just the buffer
+                imageUrl = await uploadToCloudinary(req.files.image[0], 'image', 'hortimed-news-images');
             }
             if (req.files?.video?.[0]) {
-                videoUrl = await uploadToCloudinary(req.files.video[0].buffer, 'video', 'hortimed-news-videos');
+                // Pass the full file object, not just the buffer
+                videoUrl = await uploadToCloudinary(req.files.video[0], 'video', 'hortimed-news-videos');
             }
             // --- END UPLOAD TO CLOUDINARY ---
 
@@ -430,7 +435,8 @@ app.put('/news/:id',
                 if (existingNews.image) {
                     await deleteFromCloudinary(existingNews.image, 'image');
                 }
-                imageToUpdate = await uploadToCloudinary(req.files.image[0].buffer, 'image', 'hortimed-news-images');
+                // Pass the full file object, not just the buffer
+                imageToUpdate = await uploadToCloudinary(req.files.image[0], 'image', 'hortimed-news-images');
             } else if (clearImage === 'true') {
                 if (existingNews.image) {
                     await deleteFromCloudinary(existingNews.image, 'image');
@@ -443,7 +449,8 @@ app.put('/news/:id',
                 if (existingNews.video) {
                     await deleteFromCloudinary(existingNews.video, 'video');
                 }
-                videoToUpdate = await uploadToCloudinary(req.files.video[0].buffer, 'video', 'hortimed-news-videos');
+                // Pass the full file object, not just the buffer
+                videoToUpdate = await uploadToCloudinary(req.files.video[0], 'video', 'hortimed-news-videos');
             } else if (clearVideo === 'true') {
                 if (existingNews.video) {
                     await deleteFromCloudinary(existingNews.video, 'video');
