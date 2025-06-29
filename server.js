@@ -6,11 +6,11 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const path = require('path');
-const fs = require('fs'); // Keep fs for temp dir, but we won't use it for uploads
+const fs = require('fs');
 const { body, validationResult } = require('express-validator');
 
 // --- Cloudinary Configuration (NEW) ---
-const cloudinary = require('cloudinary').v2; // Use v2 for modern API
+const cloudinary = require('cloudinary').v2;
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
@@ -25,8 +25,8 @@ const app = express();
 const allowedOrigins = [
     'http://127.0.0.1:5500', // For local development (VS Code Live Server)
     'http://localhost:5000', // For local development (if frontend served from here)
-    process.env.FRONTEND_MAIN_URL, // e.g., https://hortimed-prima.org
-    process.env.FRONTEND_ADMIN_URL // e.g., https://www.admin.hortimed-prima.com
+    process.env.FRONTEND_MAIN_URL,
+    process.env.FRONTEND_ADMIN_URL
 ].filter(Boolean); // Use .filter(Boolean) to remove any undefined/null entries if env vars are missing
 
 app.use(cors({
@@ -340,13 +340,7 @@ app.post('/news',
         console.log('Route hit: POST /news (create)');
         const errors = validationResult(req);
 
-        // Files need to be handled carefully:
-        // If validation fails, and files were uploaded to memory, they are discarded automatically.
-        // If they were uploaded to Cloudinary here, we would need to delete them if validation failed post-upload.
-        // For simplicity, we'll upload after initial validation and handle potential Cloudinary cleanup on DB error.
-
         if (!errors.isEmpty()) {
-            // No local files to unlink with memoryStorage
             return res.status(400).json({ errors: errors.array() });
         }
 
@@ -414,7 +408,6 @@ app.put('/news/:id',
         console.log('Route hit: PUT /news/:id (update)');
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
-            // No local files to unlink with memoryStorage
             return res.status(400).json({ errors: errors.array() });
         }
 
@@ -429,18 +422,16 @@ app.put('/news/:id',
                 return res.status(404).json({ error: 'Article not found for update.' });
             }
 
-            let imageToUpdate = existingNews.image; // This will hold the existing Cloudinary URL or null
-            let videoToUpdate = existingNews.video; // This will hold the existing Cloudinary URL or null
+            let imageToUpdate = existingNews.image;
+            let videoToUpdate = existingNews.video;
 
             // --- Handle Image Update ---
             if (req.files?.image?.[0]) {
-                // New image uploaded: upload new, then delete old
                 if (existingNews.image) {
                     await deleteFromCloudinary(existingNews.image, 'image');
                 }
                 imageToUpdate = await uploadToCloudinary(req.files.image[0].buffer, 'image', 'hortimed-news-images');
             } else if (clearImage === 'true') {
-                // Clear image requested: delete old, set to null
                 if (existingNews.image) {
                     await deleteFromCloudinary(existingNews.image, 'image');
                 }
@@ -449,13 +440,11 @@ app.put('/news/:id',
 
             // --- Handle Video Update ---
             if (req.files?.video?.[0]) {
-                // New video uploaded: upload new, then delete old
                 if (existingNews.video) {
                     await deleteFromCloudinary(existingNews.video, 'video');
                 }
                 videoToUpdate = await uploadToCloudinary(req.files.video[0].buffer, 'video', 'hortimed-news-videos');
             } else if (clearVideo === 'true') {
-                // Clear video requested: delete old, set to null
                 if (existingNews.video) {
                     await deleteFromCloudinary(existingNews.video, 'video');
                 }
@@ -479,9 +468,9 @@ app.put('/news/:id',
                 updateValues.push(newsDate);
             }
 
-            updateFields.push('image = ?'); // Update image with new URL or null
+            updateFields.push('image = ?');
             updateValues.push(imageToUpdate);
-            updateFields.push('video = ?'); // Update video with new URL or null
+            updateFields.push('video = ?');
             updateValues.push(videoToUpdate);
 
             if (updateFields.length === 0) {
@@ -493,7 +482,6 @@ app.put('/news/:id',
                 [...updateValues, newsId]
             );
 
-            // Fetch the updated news to return to the client with Cloudinary URLs
             const [updatedNewsRows] = await pool.query(`
                 SELECT id, title, content, image as imageUrl, video as videoUrl, createdAt
                 FROM news WHERE id = ?
@@ -567,7 +555,5 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    // These base URLs are less relevant for Cloudinary-served media,
-    // as Cloudinary provides full public URLs.
     console.log(`🌐 Frontend should access API at: ${process.env.BASE_URL || `http://localhost:${PORT}`}`);
 });
