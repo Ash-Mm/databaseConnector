@@ -1,13 +1,22 @@
 require('dotenv').config();
 const express = require('express');
-const mysql = require('mysql2/promise'); // NEW: MySQL client
+const mysql = require('mysql2/promise');
 const multer = require('multer');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const path = require('path');
-const fs = require('fs');
+const fs = require('fs'); // Keep fs for temp dir, but we won't use it for uploads
 const { body, validationResult } = require('express-validator');
+
+// --- Cloudinary Configuration (NEW) ---
+const cloudinary = require('cloudinary').v2; // Use v2 for modern API
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
+// --- END Cloudinary Config ---
 
 const app = express();
 
@@ -22,11 +31,9 @@ const allowedOrigins = [
 
 app.use(cors({
     origin: function (origin, callback) {
-        console.log('CORS Debug: Incoming origin:', origin); // <--- ADDED LOG
-        console.log('CORS Debug: Allowed origins:', allowedOrigins); // <--- ADDED LOG
+        console.log('CORS Debug: Incoming origin:', origin);
+        console.log('CORS Debug: Allowed origins:', allowedOrigins);
 
-        // Allow requests with no origin (e.g., from Postman, or certain browser scenarios for same-origin)
-        // or if the origin is explicitly in our allowed list
         if (!origin || allowedOrigins.includes(origin)) {
             return callback(null, true);
         }
@@ -39,12 +46,15 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Ensure uploads directory exists and serve static files from it
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-}
-app.use('/uploads', express.static(uploadsDir));
+// --- REMOVE local uploads directory serving ---
+// You will no longer serve files from a local 'uploads' directory
+// The following lines are commented out/removed:
+// const uploadsDir = path.join(__dirname, 'uploads');
+// if (!fs.existsSync(uploadsDir)) {
+//     fs.mkdirSync(uploadsDir, { recursive: true });
+// }
+// app.use('/uploads', express.static(uploadsDir));
+// --- END REMOVED ---
 
 
 // --- MySQL Connection Pool ---
@@ -65,13 +75,14 @@ const connectDB = async () => {
         console.log('✅ MySQL connected successfully');
 
         // Create news table if it doesn't exist
+        // Note: The `image` and `video` columns will now store Cloudinary URLs directly.
         await pool.query(`
             CREATE TABLE IF NOT EXISTS news (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 title VARCHAR(255) NOT NULL,
                 content TEXT NOT NULL,
-                image VARCHAR(255),
-                video VARCHAR(255),
+                image VARCHAR(500), -- Increased length for Cloudinary URL
+                video VARCHAR(500), -- Increased length for Cloudinary URL
                 createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
             );
         `);
@@ -84,30 +95,78 @@ const connectDB = async () => {
 };
 connectDB();
 
-// --- File Upload Configuration (Multer) ---
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, uploadsDir);
+// --- File Upload Configuration (Multer) - MODIFIED for Cloudinary ---
+// Multer will now store files in memory as buffers, which Cloudinary can then directly upload.
+const upload = multer({
+    storage: multer.memoryStorage(), // Store files in memory
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Invalid file type. Only images and videos are allowed!'), false);
+        }
     },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
-        cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
-    }
+    limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
 });
 
-const fileFilter = (req, file, cb) => {
-    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
-        cb(null, true);
-    } else {
-        cb(new Error('Invalid file type. Only images and videos are allowed!'), false);
+// --- Helper Functions for Cloudinary (NEW) ---
+
+/**
+ * Uploads a file buffer to Cloudinary.
+ * @param {Buffer} fileBuffer - The buffer of the file.
+ * @param {string} resourceType - 'image' or 'video'.
+ * @param {string} folder - Optional folder name in Cloudinary.
+ * @returns {Promise<string>} The Cloudinary URL of the uploaded file.
+ */
+const uploadToCloudinary = async (fileBuffer, resourceType, folder = 'hortimed-news') => {
+    try {
+        const result = await cloudinary.uploader.upload(`data:${fileBuffer.mimetype};base64,${fileBuffer.toString('base64')}`, {
+            resource_type: resourceType,
+            folder: folder // Organizes uploads in Cloudinary
+        });
+        return result.secure_url; // Use secure_url for HTTPS
+    } catch (error) {
+        console.error(`Cloudinary upload error (${resourceType}):`, error);
+        throw new Error(`Failed to upload ${resourceType} to Cloudinary.`);
     }
 };
 
-const upload = multer({
-    storage,
-    fileFilter,
-    limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
-});
+/**
+ * Deletes a file from Cloudinary using its URL.
+ * Extracts public_id from URL to delete.
+ * @param {string} fileUrl - The full Cloudinary URL of the file to delete.
+ * @param {string} resourceType - 'image' or 'video'.
+ * @returns {Promise<void>}
+ */
+const deleteFromCloudinary = async (fileUrl, resourceType) => {
+    if (!fileUrl || !fileUrl.includes('res.cloudinary.com')) {
+        // Not a Cloudinary URL, nothing to delete from Cloudinary
+        return;
+    }
+    try {
+        // Example URL: https://res.cloudinary.com/cloud_name/image/upload/v12345/folder/public_id.jpg
+        const parts = fileUrl.split('/');
+        // Find 'upload' or 'video' segment
+        const uploadIndex = parts.indexOf('upload');
+        if (uploadIndex === -1 || uploadIndex + 1 >= parts.length) {
+            console.warn(`Could not extract public_id from Cloudinary URL: ${fileUrl}`);
+            return;
+        }
+
+        // The public ID starts after 'upload/' and goes until the file extension
+        const publicIdWithExtension = parts.slice(uploadIndex + 1).join('/');
+        const publicId = publicIdWithExtension.split('.')[0]; // Remove extension
+
+        await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+        console.log(`Successfully deleted ${publicId} (${resourceType}) from Cloudinary.`);
+    } catch (error) {
+        console.error(`Error deleting from Cloudinary (${fileUrl}):`, error);
+        // Do not throw, as failure to delete from Cloudinary shouldn't stop other operations
+    }
+};
+
+// --- END Helper Functions ---
+
 
 // --- Authentication Setup ---
 let adminPasswordHash;
@@ -145,17 +204,16 @@ const authenticate = (req, res, next) => {
 // --- API Routes ---
 
 app.post('/login', async (req, res) => {
-    console.log('Route hit: POST /login'); // <--- ADDED LOG
+    console.log('Route hit: POST /login');
     try {
         const { password } = req.body;
         if (!password) {
             return res.status(400).json({ error: 'Password is required' });
         }
 
-        // Wait for adminPasswordHash to be generated if it's still null
         if (!adminPasswordHash) {
             let attempts = 0;
-            while (!adminPasswordHash && attempts < 10) { // Try up to 1 second
+            while (!adminPasswordHash && attempts < 10) {
                 await new Promise(resolve => setTimeout(resolve, 100));
                 attempts++;
             }
@@ -172,7 +230,7 @@ app.post('/login', async (req, res) => {
         const token = jwt.sign(
             { role: 'admin' },
             process.env.JWT_SECRET,
-            { expiresIn: '1h' } // Token expires in 1 hour
+            { expiresIn: '1h' }
         );
 
         res.json({ token, expiresIn: 3600 });
@@ -182,19 +240,18 @@ app.post('/login', async (req, res) => {
     }
 });
 
-// Get All News (Publicly accessible) with search and pagination
+// Get All News (Publicly accessible) with search and pagination - MODIFIED for Cloudinary URLs
 app.get('/news', async (req, res) => {
-    console.log('Route hit: GET /news'); // Existing log
+    console.log('Route hit: GET /news');
     try {
-        console.log('GET /news: Starting query preparation.'); // <--- ADDED LOG
+        console.log('GET /news: Starting query preparation.');
         const { page = 1, limit = 10, search = '', latest = 'false' } = req.query;
         const offset = (parseInt(page) - 1) * parseInt(limit);
         const searchLike = `%${search}%`;
 
+        // No need for CONCAT with BASE_URL anymore; image/video columns now store full URLs
         let query = `
-            SELECT id, title, content, image, video, createdAt,
-            CONCAT('${process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`}/uploads/', image) as imageUrl,
-            CONCAT('${process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`}/uploads/', video) as videoUrl
+            SELECT id, title, content, image as imageUrl, video as videoUrl, createdAt
             FROM news
         `;
         let countQuery = `SELECT COUNT(*) as total FROM news`;
@@ -211,24 +268,24 @@ app.get('/news', async (req, res) => {
         query += ` ORDER BY createdAt DESC`;
 
         if (latest === 'true') {
-            query += ` LIMIT 5`; // Get only the 5 latest for the side block
+            query += ` LIMIT 5`;
         } else {
             query += ` LIMIT ? OFFSET ?`;
             queryParams.push(parseInt(limit), offset);
         }
 
-        console.log('GET /news: Executing main query:', query, queryParams); // <--- ADDED LOG
+        console.log('GET /news: Executing main query:', query, queryParams);
         const [newsRows] = await pool.query(query, queryParams);
-        console.log('GET /news: Main query executed. Number of rows:', newsRows.length); // <--- ADDED LOG
+        console.log('GET /news: Main query executed. Number of rows:', newsRows.length);
 
-        console.log('GET /news: Executing count query:', countQuery, countQueryParams); // <--- ADDED LOG
+        console.log('GET /news: Executing count query:', countQuery, countQueryParams);
         const [totalRows] = await pool.query(countQuery, countQueryParams);
         const totalArticles = totalRows[0].total;
-        console.log('GET /news: Count query executed. Total articles:', totalArticles); // <--- ADDED LOG
+        console.log('GET /news: Count query executed. Total articles:', totalArticles);
 
         const totalPages = latest === 'true' ? 1 : Math.ceil(totalArticles / parseInt(limit));
 
-        console.log('GET /news: Sending JSON response.'); // <--- ADDED LOG
+        console.log('GET /news: Sending JSON response.');
         res.json({
             success: true,
             data: newsRows,
@@ -238,19 +295,19 @@ app.get('/news', async (req, res) => {
             limit: parseInt(limit)
         });
     } catch (err) {
-        console.error('CRITICAL ERROR: Get news error:', err); // <--- Changed prefix to CRITICAL
+        console.error('CRITICAL ERROR: Get news error:', err);
         res.status(500).json({ error: 'Failed to fetch news.' });
     }
 });
-// Get Single News Article (Publicly accessible)
+
+// Get Single News Article (Publicly accessible) - MODIFIED for Cloudinary URLs
 app.get('/news/:id', async (req, res) => {
-    console.log('Route hit: GET /news/:id'); // <--- ADDED LOG
+    console.log('Route hit: GET /news/:id');
     try {
         const newsId = req.params.id;
+        // No need for CONCAT with BASE_URL anymore
         const [rows] = await pool.query(`
-            SELECT id, title, content, image, video, createdAt,
-            CONCAT('${process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`}/uploads/', image) as imageUrl,
-            CONCAT('${process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`}/uploads/', video) as videoUrl
+            SELECT id, title, content, image as imageUrl, video as videoUrl, createdAt
             FROM news WHERE id = ?
         `, [newsId]);
 
@@ -267,7 +324,7 @@ app.get('/news/:id', async (req, res) => {
     }
 });
 
-// Create New News Article (Admin only)
+// Create New News Article (Admin only) - MODIFIED for Cloudinary uploads
 app.post('/news',
     authenticate,
     upload.fields([
@@ -277,40 +334,53 @@ app.post('/news',
     [
         body('title').isLength({ min: 5 }).withMessage('Title must be at least 5 characters').trim().escape(),
         body('content').isLength({ min: 20 }).withMessage('Content must be at least 20 characters').trim().escape(),
-        body('newsDate').isISO8601().toDate().withMessage('Invalid date format for Publication Date.') // Validate date
+        body('newsDate').isISO8601().toDate().withMessage('Invalid date format for Publication Date.')
     ],
     async (req, res) => {
-        console.log('Route hit: POST /news (create)'); // <--- ADDED LOG
+        console.log('Route hit: POST /news (create)');
         const errors = validationResult(req);
+
+        // Files need to be handled carefully:
+        // If validation fails, and files were uploaded to memory, they are discarded automatically.
+        // If they were uploaded to Cloudinary here, we would need to delete them if validation failed post-upload.
+        // For simplicity, we'll upload after initial validation and handle potential Cloudinary cleanup on DB error.
+
         if (!errors.isEmpty()) {
-            // If validation fails, delete any uploaded files
-            if (req.files?.image) fs.unlinkSync(req.files.image[0].path);
-            if (req.files?.video) fs.unlinkSync(req.files.video[0].path);
+            // No local files to unlink with memoryStorage
             return res.status(400).json({ errors: errors.array() });
         }
 
-        try {
-            const { title, content, newsDate } = req.body; // Destructure newsDate
-            const imageFilename = req.files?.image?.[0]?.filename || null;
-            const videoFilename = req.files?.video?.[0]?.filename || null;
+        let imageUrl = null;
+        let videoUrl = null;
 
-            // newsDate is already a Date object due to isISO8601().toDate()
+        try {
+            const { title, content, newsDate } = req.body;
+
+            // --- UPLOAD TO CLOUDINARY ---
+            if (req.files?.image?.[0]) {
+                imageUrl = await uploadToCloudinary(req.files.image[0].buffer, 'image', 'hortimed-news-images');
+            }
+            if (req.files?.video?.[0]) {
+                videoUrl = await uploadToCloudinary(req.files.video[0].buffer, 'video', 'hortimed-news-videos');
+            }
+            // --- END UPLOAD TO CLOUDINARY ---
+
             const dateToInsert = newsDate;
 
+            // Store the full Cloudinary URLs in the database
             const [result] = await pool.query(
                 'INSERT INTO news (title, content, image, video, createdAt) VALUES (?, ?, ?, ?, ?)',
-                [title, content, imageFilename, videoFilename, dateToInsert]
+                [title, content, imageUrl, videoUrl, dateToInsert]
             );
 
             const insertedNews = {
                 id: result.insertId,
                 title,
                 content,
-                image: imageFilename,
-                video: videoFilename,
+                // These are now the full Cloudinary URLs
+                imageUrl: imageUrl,
+                videoUrl: videoUrl,
                 createdAt: dateToInsert,
-                imageUrl: imageFilename ? `${process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`}/uploads/${imageFilename}` : null,
-                videoUrl: videoFilename ? `${process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`}/uploads/${videoFilename}` : null,
             };
 
             res.status(201).json({
@@ -320,15 +390,15 @@ app.post('/news',
             });
         } catch (err) {
             console.error('Create news error:', err);
-            // If DB error, try to delete uploaded files
-            if (req.files?.image) fs.unlinkSync(req.files.image[0].path);
-            if (req.files?.video) fs.unlinkSync(req.files.video[0].path);
+            // If DB insertion fails, try to delete the files from Cloudinary
+            if (imageUrl) await deleteFromCloudinary(imageUrl, 'image');
+            if (videoUrl) await deleteFromCloudinary(videoUrl, 'video');
             res.status(500).json({ error: 'Failed to create news: ' + err.message });
         }
     }
 );
 
-// Update Existing News Article (Admin only)
+// Update Existing News Article (Admin only) - MODIFIED for Cloudinary updates
 app.put('/news/:id',
     authenticate,
     upload.fields([
@@ -338,15 +408,13 @@ app.put('/news/:id',
     [
         body('title').optional().isLength({ min: 5 }).withMessage('Title must be at least 5 characters').trim().escape(),
         body('content').optional().isLength({ min: 20 }).withMessage('Content must be at least 20 characters').trim().escape(),
-        body('newsDate').optional().isISO8601().toDate().withMessage('Invalid date format for Publication Date.') // Validate date
+        body('newsDate').optional().isISO8601().toDate().withMessage('Invalid date format for Publication Date.')
     ],
     async (req, res) => {
-        console.log('Route hit: PUT /news/:id (update)'); // <--- ADDED LOG
+        console.log('Route hit: PUT /news/:id (update)');
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
-            // If validation fails, delete any newly uploaded files
-            if (req.files?.image) fs.unlinkSync(req.files.image[0].path);
-            if (req.files?.video) fs.unlinkSync(req.files.video[0].path);
+            // No local files to unlink with memoryStorage
             return res.status(400).json({ errors: errors.array() });
         }
 
@@ -358,32 +426,42 @@ app.put('/news/:id',
             const existingNews = existingNewsRows[0];
 
             if (!existingNews) {
-                // If article not found, delete any newly uploaded files
-                if (req.files?.image) fs.unlinkSync(req.files.image[0].path);
-                if (req.files?.video) fs.unlinkSync(req.files.video[0].path);
                 return res.status(404).json({ error: 'Article not found for update.' });
             }
 
-            let imageToUpdate = existingNews.image;
-            let videoToUpdate = existingNews.video;
+            let imageToUpdate = existingNews.image; // This will hold the existing Cloudinary URL or null
+            let videoToUpdate = existingNews.video; // This will hold the existing Cloudinary URL or null
 
-            // Handle new image upload or clear request
-            if (req.files?.image) {
-                if (existingNews.image) fs.unlinkSync(path.join(uploadsDir, existingNews.image));
-                imageToUpdate = req.files.image[0].filename;
+            // --- Handle Image Update ---
+            if (req.files?.image?.[0]) {
+                // New image uploaded: upload new, then delete old
+                if (existingNews.image) {
+                    await deleteFromCloudinary(existingNews.image, 'image');
+                }
+                imageToUpdate = await uploadToCloudinary(req.files.image[0].buffer, 'image', 'hortimed-news-images');
             } else if (clearImage === 'true') {
-                if (existingNews.image) fs.unlinkSync(path.join(uploadsDir, existingNews.image));
+                // Clear image requested: delete old, set to null
+                if (existingNews.image) {
+                    await deleteFromCloudinary(existingNews.image, 'image');
+                }
                 imageToUpdate = null;
             }
 
-            // Handle new video upload or clear request
-            if (req.files?.video) {
-                if (existingNews.video) fs.unlinkSync(path.join(uploadsDir, existingNews.video));
-                videoToUpdate = req.files.video[0].filename;
+            // --- Handle Video Update ---
+            if (req.files?.video?.[0]) {
+                // New video uploaded: upload new, then delete old
+                if (existingNews.video) {
+                    await deleteFromCloudinary(existingNews.video, 'video');
+                }
+                videoToUpdate = await uploadToCloudinary(req.files.video[0].buffer, 'video', 'hortimed-news-videos');
             } else if (clearVideo === 'true') {
-                if (existingNews.video) fs.unlinkSync(path.join(uploadsDir, existingNews.video));
+                // Clear video requested: delete old, set to null
+                if (existingNews.video) {
+                    await deleteFromCloudinary(existingNews.video, 'video');
+                }
                 videoToUpdate = null;
             }
+            // --- END Handle Media Updates ---
 
             const updateFields = [];
             const updateValues = [];
@@ -396,15 +474,14 @@ app.put('/news/:id',
                 updateFields.push('content = ?');
                 updateValues.push(content);
             }
-            if (newsDate !== undefined) { // If newsDate is provided, update it
+            if (newsDate !== undefined) {
                 updateFields.push('createdAt = ?');
-                updateValues.push(newsDate); // newsDate is already a Date object
+                updateValues.push(newsDate);
             }
 
-            // Always update image and video fields, even if null
-            updateFields.push('image = ?');
+            updateFields.push('image = ?'); // Update image with new URL or null
             updateValues.push(imageToUpdate);
-            updateFields.push('video = ?');
+            updateFields.push('video = ?'); // Update video with new URL or null
             updateValues.push(videoToUpdate);
 
             if (updateFields.length === 0) {
@@ -416,11 +493,9 @@ app.put('/news/:id',
                 [...updateValues, newsId]
             );
 
-            // Fetch the updated news to return to the client with virtuals
+            // Fetch the updated news to return to the client with Cloudinary URLs
             const [updatedNewsRows] = await pool.query(`
-                SELECT id, title, content, image, video, createdAt,
-                    CONCAT('${process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`}/uploads/', image) as imageUrl,
-                    CONCAT('${process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`}/uploads/', video) as videoUrl
+                SELECT id, title, content, image as imageUrl, video as videoUrl, createdAt
                 FROM news WHERE id = ?
             `, [newsId]);
 
@@ -431,17 +506,14 @@ app.put('/news/:id',
             });
         } catch (err) {
             console.error('Update news error:', err);
-            // If DB error, try to delete any newly uploaded files
-            if (req.files?.image) fs.unlinkSync(req.files.image[0].path);
-            if (req.files?.video) fs.unlinkSync(req.files.video[0].path);
             res.status(500).json({ error: 'Failed to update news: ' + err.message });
         }
     }
 );
 
-// Delete News Article (Admin only)
+// Delete News Article (Admin only) - MODIFIED for Cloudinary deletion
 app.delete('/news/:id', authenticate, async (req, res) => {
-    console.log('Route hit: DELETE /news/:id'); // <--- ADDED LOG
+    console.log('Route hit: DELETE /news/:id');
     try {
         const newsId = req.params.id;
 
@@ -452,20 +524,21 @@ app.delete('/news/:id', authenticate, async (req, res) => {
             return res.status(404).json({ error: 'Article not found.' });
         }
 
-        // Delete associated files from uploads directory
+        // --- Delete associated files from Cloudinary ---
         if (existingNews.image) {
-            fs.unlinkSync(path.join(uploadsDir, existingNews.image));
+            await deleteFromCloudinary(existingNews.image, 'image');
         }
         if (existingNews.video) {
-            fs.unlinkSync(path.join(uploadsDir, existingNews.video));
+            await deleteFromCloudinary(existingNews.video, 'video');
         }
+        // --- END Cloudinary Deletion ---
 
         await pool.query('DELETE FROM news WHERE id = ?', [newsId]);
 
         res.json({
             success: true,
             message: 'Article deleted successfully!',
-            data: existingNews // Return the deleted item data
+            data: existingNews
         });
     } catch (err) {
         console.error('Delete news error:', err);
@@ -477,7 +550,7 @@ app.delete('/news/:id', authenticate, async (req, res) => {
 // --- Error Handling Middleware ---
 
 app.use((err, req, res, next) => {
-    console.error('Global error handler caught:', err.stack); // <--- LOG ALREADY PRESENT AND GOOD
+    console.error('Global error handler caught:', err.stack);
 
     if (err instanceof multer.MulterError) {
         return res.status(400).json({ error: `File upload error: ${err.message}` });
@@ -492,8 +565,9 @@ app.use((err, req, res, next) => {
 // --- Server Startup ---
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, '0.0.0.0', () => { // '0.0.0.0' allows connections from any IP, useful for Docker/hosting
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`🔗 Base URL for media: ${process.env.BASE_URL || `http://localhost:${PORT}`}/uploads`);
+    // These base URLs are less relevant for Cloudinary-served media,
+    // as Cloudinary provides full public URLs.
     console.log(`🌐 Frontend should access API at: ${process.env.BASE_URL || `http://localhost:${PORT}`}`);
 });
