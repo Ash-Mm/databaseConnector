@@ -184,8 +184,9 @@ app.post('/login', async (req, res) => {
 
 // Get All News (Publicly accessible) with search and pagination
 app.get('/news', async (req, res) => {
-    console.log('Route hit: GET /news'); // <--- ADDED LOG
+    console.log('Route hit: GET /news'); // Existing log
     try {
+        console.log('GET /news: Starting query preparation.'); // <--- ADDED LOG
         const { page = 1, limit = 10, search = '', latest = 'false' } = req.query;
         const offset = (parseInt(page) - 1) * parseInt(limit);
         const searchLike = `%${search}%`;
@@ -216,11 +217,18 @@ app.get('/news', async (req, res) => {
             queryParams.push(parseInt(limit), offset);
         }
 
+        console.log('GET /news: Executing main query:', query, queryParams); // <--- ADDED LOG
         const [newsRows] = await pool.query(query, queryParams);
+        console.log('GET /news: Main query executed. Number of rows:', newsRows.length); // <--- ADDED LOG
+
+        console.log('GET /news: Executing count query:', countQuery, countQueryParams); // <--- ADDED LOG
         const [totalRows] = await pool.query(countQuery, countQueryParams);
         const totalArticles = totalRows[0].total;
+        console.log('GET /news: Count query executed. Total articles:', totalArticles); // <--- ADDED LOG
+
         const totalPages = latest === 'true' ? 1 : Math.ceil(totalArticles / parseInt(limit));
 
+        console.log('GET /news: Sending JSON response.'); // <--- ADDED LOG
         res.json({
             success: true,
             data: newsRows,
@@ -230,11 +238,10 @@ app.get('/news', async (req, res) => {
             limit: parseInt(limit)
         });
     } catch (err) {
-        console.error('Get news error:', err);
+        console.error('CRITICAL ERROR: Get news error:', err); // <--- Changed prefix to CRITICAL
         res.status(500).json({ error: 'Failed to fetch news.' });
     }
 });
-
 // Get Single News Article (Publicly accessible)
 app.get('/news/:id', async (req, res) => {
     console.log('Route hit: GET /news/:id'); // <--- ADDED LOG
