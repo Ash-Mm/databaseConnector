@@ -22,12 +22,22 @@ const app = express();
 
 // --- Middleware ---
 
-const allowedOrigins = [
-    'http://127.0.0.1:5500', // For local development (VS Code Live Server)
-    'http://localhost:5000', // For local development (if frontend served from here)
+// 1. Gather all potential production and development domains
+const rawOrigins = [
+    'http://127.0.0.1:5500', 
+    'http://localhost:5000', 
+    'https://hortimed-prima.org',
+    'https://www.hortimed-prima.org',
+    'https://admin.hortimed-prima.org',
+    'https://www.admin.hortimed-prima.org',
     process.env.FRONTEND_MAIN_URL,
     process.env.FRONTEND_ADMIN_URL
-].filter(Boolean); // Use .filter(Boolean) to remove any undefined/null entries if env vars are missing
+];
+
+// 2. Automatically remove trailing slashes from any environment string inputs
+const allowedOrigins = rawOrigins
+    .filter(Boolean)
+    .map(url => url.trim().replace(/\/$/, ''));
 
 app.use(cors({
     origin: function (origin, callback) {
@@ -37,8 +47,9 @@ app.use(cors({
         if (!origin || allowedOrigins.includes(origin)) {
             return callback(null, true);
         }
-        const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-        return callback(new Error(msg), false);
+        
+        // Reject non-allowed origins cleanly without triggering a 500 crash
+        return callback(null, false);
     },
     credentials: true
 }));
