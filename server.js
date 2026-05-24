@@ -115,12 +115,10 @@ const connectDB = async () => {
             user: process.env.MYSQL_USER,
             password: process.env.MYSQL_PASSWORD,
             database: process.env.MYSQL_DATABASE,
-            port: parseInt(process.env.MYSQL_PORT, 10) || 3306, 
+            port: parseInt(process.env.MYSQL_PORT, 10) || 4000, // TiDB default is 4000, not 3306
             waitForConnections: true,
             connectionLimit: 10,
             queueLimit: 0,
-            enableKeepAlive: true,
-            keepAliveInitialDelay: 10000,
             ssl: { rejectUnauthorized: false }
         });
 
@@ -128,7 +126,7 @@ const connectDB = async () => {
         logger.info('MySQL pool initialized and connected successfully');
         connection.release();
 
-        // Create table with new schema (publishedAt + publicIds)
+        // --- Safer table creation ---
         await pool.query(`
             CREATE TABLE IF NOT EXISTS news (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -144,23 +142,34 @@ const connectDB = async () => {
         `);
         logger.info('News table ensured');
 
-        // Migrate existing tables silently if columns are missing
-        const addColumnIfMissing = async (column, definition) => {
-            try {
-                await pool.query(`ALTER TABLE news ADD COLUMN ${column} ${definition}`);
-                logger.info(`Migration: added column ${column}`);
-            } catch (err) {
-                if (err.code !== 'ER_DUP_FIELDNAME') throw err;
-            }
-        };
+        // --- Safer migrations: check INFORMATION_SCHEMA first ---
+        const [columns] = await pool.query(`
+            SELECT COLUMN_NAME 
+            FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'news'
+        `, [process.env.MYSQL_DATABASE]);
 
-        await addColumnIfMissing('imagePublicId', 'VARCHAR(255) AFTER image');
-        await addColumnIfMissing('videoPublicId', 'VARCHAR(255) AFTER video');
-        await addColumnIfMissing('publishedAt', 'DATETIME AFTER videoPublicId');
+        const existingCols = columns.map(c => c.COLUMN_NAME);
+
+        const migrations = [
+            { name: 'imagePublicId', def: 'VARCHAR(255)' },
+            { name: 'videoPublicId', def: 'VARCHAR(255)' },
+            { name: 'publishedAt',   def: 'DATETIME' }
+        ];
+
+        for (const col of migrations) {
+            if (!existingCols.includes(col.name)) {
+                await pool.query(`ALTER TABLE news ADD COLUMN ${col.name} ${col.def}`);
+                logger.info(`Migration: added column ${col.name}`);
+            } else {
+                logger.info(`Migration: column ${col.name} already exists`);
+            }
+        }
 
     } catch (err) {
-        logger.error('MySQL initialization failed', { error: err.message });
-        process.exit(1); 
+        logger.error('MySQL initialization failed', { error: err.message, code: err.code, sqlState: err.sqlState });
+        // DO NOT exit(1) here — let Render show the logs and keep retrying
+        throw err;
     }
 };
 connectDB();
