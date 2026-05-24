@@ -58,39 +58,54 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 
 // --- MySQL Connection Pool ---
-let pool; // Declare pool globally
+let pool; 
 
 const connectDB = async () => {
     try {
-        pool = await mysql.createPool({
+        // mysql.createPool does not need 'await' as it initializes instantly in memory
+        pool = mysql.createPool({
             host: process.env.MYSQL_HOST,
             user: process.env.MYSQL_USER,
             password: process.env.MYSQL_PASSWORD,
             database: process.env.MYSQL_DATABASE,
-            port: process.env.MYSQL_PORT,
+            // Ensure the port is an integer, default to 3306 if undefined
+            port: parseInt(process.env.MYSQL_PORT, 10) || 3306, 
             waitForConnections: true,
             connectionLimit: 10,
-            queueLimit: 0
+            queueLimit: 0,
+            
+            // 🔄 Auto-Reconnect & Stability Enhancements
+            enableKeepAlive: true,
+            keepAliveInitialDelay: 10000, // Pings Aiven every 10 seconds to stop inactivity sleep
+            
+            // 🔒 SSL Configuration (Crucial for Aiven/Cloud databases)
+            ssl: {
+                rejectUnauthorized: false 
+            }
         });
-        console.log('✅ MySQL connected successfully');
+
+        // 🕵️‍♂️ ACTUALLY test the connection here
+        const connection = await pool.getConnection();
+        console.log('✅ MySQL pool initialized and connected successfully!');
+        connection.release(); // Always send it back to the pool immediately
 
         // Create news table if it doesn't exist
-        // Note: The `image` and `video` columns will now store Cloudinary URLs directly.
         await pool.query(`
             CREATE TABLE IF NOT EXISTS news (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 title VARCHAR(255) NOT NULL,
                 content TEXT NOT NULL,
-                image VARCHAR(500), -- Increased length for Cloudinary URL
-                video VARCHAR(500), -- Increased length for Cloudinary URL
+                image VARCHAR(500), 
+                video VARCHAR(500), 
                 createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
             );
         `);
         console.log('✅ News table ensured.');
 
     } catch (err) {
-        console.error('❌ MySQL connection error:', err.message);
-        process.exit(1);
+        console.error('❌ MySQL initialization failed:', err.message);
+        // Let it exit so Render can attempt a fresh container deploy automatically
+        process.exit(1); 
     }
 };
 connectDB();
