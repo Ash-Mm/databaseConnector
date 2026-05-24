@@ -5,24 +5,76 @@ const multer = require('multer');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
-const path = require('path');
-const fs = require('fs');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
-
-// --- Cloudinary Configuration (NEW) ---
+const stream = require('stream');
 const cloudinary = require('cloudinary').v2;
+
+// ==========================================
+// 1. Environment Validation
+// ==========================================
+const REQUIRED_ENV_VARS = [
+    'ADMIN_PASSWORD',
+    'JWT_SECRET',
+    'CLOUDINARY_CLOUD_NAME',
+    'CLOUDINARY_API_KEY',
+    'CLOUDINARY_API_SECRET',
+    'MYSQL_HOST',
+    'MYSQL_USER',
+    'MYSQL_PASSWORD',
+    'MYSQL_DATABASE'
+];
+
+const missingEnv = REQUIRED_ENV_VARS.filter(key => !process.env[key]);
+if (missingEnv.length > 0) {
+    console.error(`❌ Missing required environment variables: ${missingEnv.join(', ')}`);
+    process.exit(1);
+}
+
+// ==========================================
+// 2. Structured Logger
+// ==========================================
+const logger = {
+    info: (msg, meta = {}) => console.log(JSON.stringify({ level: 'info', time: new Date().toISOString(), message: msg, ...meta })),
+    error: (msg, meta = {}) => console.error(JSON.stringify({ level: 'error', time: new Date().toISOString(), message: msg, ...meta })),
+    warn: (msg, meta = {}) => console.warn(JSON.stringify({ level: 'warn', time: new Date().toISOString(), message: msg, ...meta }))
+};
+
+// ==========================================
+// 3. Cloudinary Configuration
+// ==========================================
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
-// --- END Cloudinary Config ---
 
 const app = express();
 
-// --- Middleware ---
+// ==========================================
+// 4. Security Middleware (Helmet + Rate Limit)
+// ==========================================
+app.use(helmet());
 
-// 1. Gather all potential production and development domains
+const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' }
+});
+app.use(generalLimiter);
+
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: { error: 'Too many login attempts, please try again later.' }
+});
+
+// ==========================================
+// 5. CORS
+// ==========================================
 const rawOrigins = [
     'http://127.0.0.1:5500', 
     'http://localhost:5000', 
@@ -34,21 +86,15 @@ const rawOrigins = [
     process.env.FRONTEND_ADMIN_URL
 ];
 
-// 2. Automatically remove trailing slashes from any environment string inputs
 const allowedOrigins = rawOrigins
     .filter(Boolean)
     .map(url => url.trim().replace(/\/$/, ''));
 
 app.use(cors({
     origin: function (origin, callback) {
-        console.log('CORS Debug: Incoming origin:', origin);
-        console.log('CORS Debug: Allowed origins:', allowedOrigins);
-
         if (!origin || allowedOrigins.includes(origin)) {
             return callback(null, true);
         }
-        
-        // Reject non-allowed origins cleanly without triggering a 500 crash
         return callback(null, false);
     },
     credentials: true
@@ -57,74 +103,73 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// --- REMOVE local uploads directory serving ---
-// You will no longer serve files from a local 'uploads' directory
-// The following lines are commented out/removed:
-// const uploadsDir = path.join(__dirname, 'uploads');
-// if (!fs.existsSync(uploadsDir)) {
-//     fs.mkdirSync(uploadsDir, { recursive: true });
-// }
-// app.use('/uploads', express.static(uploadsDir));
-// --- END REMOVED ---
-
-
-// --- MySQL Connection Pool ---
+// ==========================================
+// 6. MySQL Connection Pool + Auto-Migration
+// ==========================================
 let pool; 
 
 const connectDB = async () => {
     try {
-        // mysql.createPool does not need 'await' as it initializes instantly in memory
         pool = mysql.createPool({
             host: process.env.MYSQL_HOST,
             user: process.env.MYSQL_USER,
             password: process.env.MYSQL_PASSWORD,
             database: process.env.MYSQL_DATABASE,
-            // Ensure the port is an integer, default to 3306 if undefined
             port: parseInt(process.env.MYSQL_PORT, 10) || 3306, 
             waitForConnections: true,
             connectionLimit: 10,
             queueLimit: 0,
-            
-            // 🔄 Auto-Reconnect & Stability Enhancements
             enableKeepAlive: true,
-            keepAliveInitialDelay: 10000, // Pings Aiven every 10 seconds to stop inactivity sleep
-            
-            // 🔒 SSL Configuration (Crucial for Aiven/Cloud databases)
-            ssl: {
-                rejectUnauthorized: false 
-            }
+            keepAliveInitialDelay: 10000,
+            ssl: { rejectUnauthorized: false }
         });
 
-        // 🕵️‍♂️ ACTUALLY test the connection here
         const connection = await pool.getConnection();
-        console.log('✅ MySQL pool initialized and connected successfully!');
-        connection.release(); // Always send it back to the pool immediately
+        logger.info('MySQL pool initialized and connected successfully');
+        connection.release();
 
-        // Create news table if it doesn't exist
+        // Create table with new schema (publishedAt + publicIds)
         await pool.query(`
             CREATE TABLE IF NOT EXISTS news (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 title VARCHAR(255) NOT NULL,
                 content TEXT NOT NULL,
                 image VARCHAR(500), 
-                video VARCHAR(500), 
-                createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+                video VARCHAR(500),
+                imagePublicId VARCHAR(255),
+                videoPublicId VARCHAR(255),
+                createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+                publishedAt DATETIME
             );
         `);
-        console.log('✅ News table ensured.');
+        logger.info('News table ensured');
+
+        // Migrate existing tables silently if columns are missing
+        const addColumnIfMissing = async (column, definition) => {
+            try {
+                await pool.query(`ALTER TABLE news ADD COLUMN ${column} ${definition}`);
+                logger.info(`Migration: added column ${column}`);
+            } catch (err) {
+                if (err.code !== 'ER_DUP_FIELDNAME') throw err;
+            }
+        };
+
+        await addColumnIfMissing('imagePublicId', 'VARCHAR(255) AFTER image');
+        await addColumnIfMissing('videoPublicId', 'VARCHAR(255) AFTER video');
+        await addColumnIfMissing('publishedAt', 'DATETIME AFTER videoPublicId');
 
     } catch (err) {
-        console.error('❌ MySQL initialization failed:', err.message);
-        // Let it exit so Render can attempt a fresh container deploy automatically
+        logger.error('MySQL initialization failed', { error: err.message });
         process.exit(1); 
     }
 };
 connectDB();
 
-// --- File Upload Configuration (Multer) - MODIFIED for Cloudinary ---
-// Multer will now store files in memory as buffers, which Cloudinary can then directly upload.
+// ==========================================
+// 7. File Upload (Multer → Memory)
+// ==========================================
 const upload = multer({
-    storage: multer.memoryStorage(), // Store files in memory
+    storage: multer.memoryStorage(),
     fileFilter: (req, file, cb) => {
         if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
             cb(null, true);
@@ -132,83 +177,51 @@ const upload = multer({
             cb(new Error('Invalid file type. Only images and videos are allowed!'), false);
         }
     },
-    limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
+    limits: { fileSize: 50 * 1024 * 1024 }
 });
 
-// --- Helper Functions for Cloudinary (NEW) ---
-
-/**
- * Uploads a file buffer to Cloudinary.
- * @param {object} file - The Multer file object (contains buffer and mimetype).
- * @param {string} resourceType - 'image' or 'video'.
- * @param {string} folder - Optional folder name in Cloudinary.
- * @returns {Promise<string>} The Cloudinary URL of the uploaded file.
- */
-const uploadToCloudinary = async (file, resourceType, folder = 'hortimed-news') => { // Changed fileBuffer to file
-    try {
-        const dataUri = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`; // Access file.mimetype and file.buffer
-        console.log(`Attempting Cloudinary upload for ${resourceType}. Data URI length: ${dataUri.length}`); // Added console log
-
-        const result = await cloudinary.uploader.upload(dataUri, {
-            resource_type: resourceType,
-            folder: folder // Organizes uploads in Cloudinary
-        });
-        return result.secure_url; // Use secure_url for HTTPS
-    } catch (error) {
-        console.error(`Cloudinary upload error (${resourceType}):`, error);
-        throw new Error(`Failed to upload ${resourceType} to Cloudinary.`);
-    }
+// ==========================================
+// 8. Cloudinary Streaming Helpers
+// ==========================================
+const uploadToCloudinary = (file, resourceType, folder = 'hortimed-news') => {
+    return new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+            { resource_type: resourceType, folder },
+            (error, result) => {
+                if (error) return reject(error);
+                resolve({ url: result.secure_url, publicId: result.public_id });
+            }
+        );
+        
+        const bufferStream = new stream.PassThrough();
+        bufferStream.end(file.buffer);
+        bufferStream.pipe(uploadStream);
+        
+        bufferStream.on('error', reject);
+        uploadStream.on('error', reject);
+    });
 };
 
-/**
- * Deletes a file from Cloudinary using its URL.
- * Extracts public_id from URL to delete.
- * @param {string} fileUrl - The full Cloudinary URL of the file to delete.
- * @param {string} resourceType - 'image' or 'video'.
- * @returns {Promise<void>}
- */
-const deleteFromCloudinary = async (fileUrl, resourceType) => {
-    if (!fileUrl || !fileUrl.includes('res.cloudinary.com')) {
-        // Not a Cloudinary URL, nothing to delete from Cloudinary
-        return;
-    }
+const deleteFromCloudinary = async (publicId, resourceType) => {
+    if (!publicId) return;
     try {
-        // Example URL: https://res.cloudinary.com/cloud_name/image/upload/v12345/folder/public_id.jpg
-        const parts = fileUrl.split('/');
-        // Find 'upload' or 'video' segment
-        const uploadIndex = parts.indexOf('upload');
-        if (uploadIndex === -1 || uploadIndex + 1 >= parts.length) {
-            console.warn(`Could not extract public_id from Cloudinary URL: ${fileUrl}`);
-            return;
-        }
-
-        // The public ID starts after 'upload/' and goes until the file extension
-        const publicIdWithExtension = parts.slice(uploadIndex + 1).join('/');
-        const publicId = publicIdWithExtension.split('.')[0]; // Remove extension
-
         await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
-        console.log(`Successfully deleted ${publicId} (${resourceType}) from Cloudinary.`);
+        logger.info('Cloudinary delete success', { publicId, resourceType });
     } catch (error) {
-        console.error(`Error deleting from Cloudinary (${fileUrl}):`, error);
-        // Do not throw, as failure to delete from Cloudinary shouldn't stop other operations
+        logger.error('Cloudinary delete failed', { publicId, resourceType, error: error.message });
     }
 };
 
-// --- END Helper Functions ---
-
-
-// --- Authentication Setup ---
+// ==========================================
+// 9. Authentication (Hardened with Role Guard)
+// ==========================================
 let adminPasswordHash;
 (async () => {
-    if (!process.env.ADMIN_PASSWORD) {
-        console.error('❌ ADMIN_PASSWORD is not set in .env. Server cannot start securely.');
-        process.exit(1);
-    }
     try {
         adminPasswordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD, 12);
-        console.log('Admin password hash generated.');
+        logger.info('Admin password hash generated');
     } catch (err) {
-        console.error('❌ Error hashing admin password:', err.message);
+        logger.error('Error hashing admin password', { error: err.message });
         process.exit(1);
     }
 })();
@@ -222,18 +235,53 @@ const authenticate = (req, res, next) => {
 
         const token = authHeader.split(' ')[1];
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        if (decoded.role !== 'admin') {
+            return res.status(403).json({ error: 'Forbidden: Admin access required.' });
+        }
+        
         req.user = decoded;
         next();
     } catch (err) {
-        console.error('Authentication error:', err.message);
+        logger.error('Authentication error', { error: err.message });
         return res.status(401).json({ error: 'Unauthorized: Invalid or expired token.' });
     }
 };
 
-// --- API Routes ---
+// ==========================================
+// 10. Centralized Validation Rules
+// ==========================================
+const createNewsRules = [
+    body('title').isLength({ min: 5 }).withMessage('Title must be at least 5 characters').trim().escape(),
+    body('content').isLength({ min: 20 }).withMessage('Content must be at least 20 characters').trim().escape(),
+    body('newsDate').isISO8601().toDate().withMessage('Invalid date format for Publication Date.')
+];
 
-app.post('/login', async (req, res) => {
-    console.log('Route hit: POST /login');
+const updateNewsRules = [
+    body('title').optional().isLength({ min: 5 }).withMessage('Title must be at least 5 characters').trim().escape(),
+    body('content').optional().isLength({ min: 20 }).withMessage('Content must be at least 20 characters').trim().escape(),
+    body('newsDate').optional().isISO8601().toDate().withMessage('Invalid date format for Publication Date.')
+];
+
+// ==========================================
+// 11. API Routes
+// ==========================================
+
+// Health Check
+app.get('/health', async (req, res) => {
+    try {
+        const connection = await pool.getConnection();
+        connection.release();
+        res.json({ status: 'ok', database: 'connected', timestamp: new Date().toISOString() });
+    } catch (err) {
+        logger.error('Health check failed', { error: err.message });
+        res.status(503).json({ status: 'error', database: 'disconnected', timestamp: new Date().toISOString() });
+    }
+});
+
+// Login
+app.post('/login', authLimiter, async (req, res) => {
+    logger.info('Route hit: POST /login');
     try {
         const { password } = req.body;
         if (!password) {
@@ -264,23 +312,21 @@ app.post('/login', async (req, res) => {
 
         res.json({ token, expiresIn: 3600 });
     } catch (err) {
-        console.error('Login error:', err);
+        logger.error('Login error', { error: err.message });
         res.status(500).json({ error: 'Internal server error during login.' });
     }
 });
 
-// Get All News (Publicly accessible) with search and pagination - MODIFIED for Cloudinary URLs
+// Get All News (publishedAt ordering, no 'latest' flag)
 app.get('/news', async (req, res) => {
-    console.log('Route hit: GET /news');
+    logger.info('Route hit: GET /news');
     try {
-        console.log('GET /news: Starting query preparation.');
-        const { page = 1, limit = 10, search = '', latest = 'false' } = req.query;
+        const { page = 1, limit = 10, search = '' } = req.query;
         const offset = (parseInt(page) - 1) * parseInt(limit);
         const searchLike = `%${search}%`;
 
-        // No need for CONCAT with BASE_URL anymore; image/video columns now store full URLs
         let query = `
-            SELECT id, title, content, image as imageUrl, video as videoUrl, createdAt
+            SELECT id, title, content, image as imageUrl, video as videoUrl, createdAt, publishedAt
             FROM news
         `;
         let countQuery = `SELECT COUNT(*) as total FROM news`;
@@ -294,27 +340,15 @@ app.get('/news', async (req, res) => {
             countQueryParams.push(searchLike, searchLike);
         }
 
-        query += ` ORDER BY createdAt DESC`;
+        query += ` ORDER BY COALESCE(publishedAt, createdAt) DESC`;
+        query += ` LIMIT ? OFFSET ?`;
+        queryParams.push(parseInt(limit), offset);
 
-        if (latest === 'true') {
-            query += ` LIMIT 5`;
-        } else {
-            query += ` LIMIT ? OFFSET ?`;
-            queryParams.push(parseInt(limit), offset);
-        }
-
-        console.log('GET /news: Executing main query:', query, queryParams);
         const [newsRows] = await pool.query(query, queryParams);
-        console.log('GET /news: Main query executed. Number of rows:', newsRows.length);
-
-        console.log('GET /news: Executing count query:', countQuery, countQueryParams);
         const [totalRows] = await pool.query(countQuery, countQueryParams);
         const totalArticles = totalRows[0].total;
-        console.log('GET /news: Count query executed. Total articles:', totalArticles);
+        const totalPages = Math.ceil(totalArticles / parseInt(limit));
 
-        const totalPages = latest === 'true' ? 1 : Math.ceil(totalArticles / parseInt(limit));
-
-        console.log('GET /news: Sending JSON response.');
         res.json({
             success: true,
             data: newsRows,
@@ -324,19 +358,18 @@ app.get('/news', async (req, res) => {
             limit: parseInt(limit)
         });
     } catch (err) {
-        console.error('CRITICAL ERROR: Get news error:', err);
+        logger.error('Get news error', { error: err.message });
         res.status(500).json({ error: 'Failed to fetch news.' });
     }
 });
 
-// Get Single News Article (Publicly accessible) - MODIFIED for Cloudinary URLs
+// Get Single News Article
 app.get('/news/:id', async (req, res) => {
-    console.log('Route hit: GET /news/:id');
+    logger.info('Route hit: GET /news/:id');
     try {
         const newsId = req.params.id;
-        // No need for CONCAT with BASE_URL anymore
         const [rows] = await pool.query(`
-            SELECT id, title, content, image as imageUrl, video as videoUrl, createdAt
+            SELECT id, title, content, image as imageUrl, video as videoUrl, createdAt, publishedAt
             FROM news WHERE id = ?
         `, [newsId]);
 
@@ -348,64 +381,58 @@ app.get('/news/:id', async (req, res) => {
 
         res.json({ success: true, data: newsArticle });
     } catch (err) {
-        console.error('Get single news error:', err);
+        logger.error('Get single news error', { error: err.message });
         res.status(500).json({ error: 'Failed to fetch article.' });
     }
 });
 
-// Create New News Article (Admin only) - MODIFIED for Cloudinary uploads
+// Create New News Article (stores publicId + publishedAt)
 app.post('/news',
     authenticate,
     upload.fields([
         { name: 'image', maxCount: 1 },
         { name: 'video', maxCount: 1 }
     ]),
-    [
-        body('title').isLength({ min: 5 }).withMessage('Title must be at least 5 characters').trim().escape(),
-        body('content').isLength({ min: 20 }).withMessage('Content must be at least 20 characters').trim().escape(),
-        body('newsDate').isISO8601().toDate().withMessage('Invalid date format for Publication Date.')
-    ],
+    createNewsRules,
     async (req, res) => {
-        console.log('Route hit: POST /news (create)');
+        logger.info('Route hit: POST /news (create)');
         const errors = validationResult(req);
-
         if (!errors.isEmpty()) {
             return res.status(400).json({ errors: errors.array() });
         }
 
         let imageUrl = null;
+        let imagePublicId = null;
         let videoUrl = null;
+        let videoPublicId = null;
 
         try {
             const { title, content, newsDate } = req.body;
 
-            // --- UPLOAD TO CLOUDINARY ---
             if (req.files?.image?.[0]) {
-                // Pass the full file object, not just the buffer
-                imageUrl = await uploadToCloudinary(req.files.image[0], 'image', 'hortimed-news-images');
+                const result = await uploadToCloudinary(req.files.image[0], 'image', 'hortimed-news-images');
+                imageUrl = result.url;
+                imagePublicId = result.publicId;
             }
             if (req.files?.video?.[0]) {
-                // Pass the full file object, not just the buffer
-                videoUrl = await uploadToCloudinary(req.files.video[0], 'video', 'hortimed-news-videos');
+                const result = await uploadToCloudinary(req.files.video[0], 'video', 'hortimed-news-videos');
+                videoUrl = result.url;
+                videoPublicId = result.publicId;
             }
-            // --- END UPLOAD TO CLOUDINARY ---
 
-            const dateToInsert = newsDate;
-
-            // Store the full Cloudinary URLs in the database
             const [result] = await pool.query(
-                'INSERT INTO news (title, content, image, video, createdAt) VALUES (?, ?, ?, ?, ?)',
-                [title, content, imageUrl, videoUrl, dateToInsert]
+                'INSERT INTO news (title, content, image, imagePublicId, video, videoPublicId, createdAt, publishedAt) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)',
+                [title, content, imageUrl, imagePublicId, videoUrl, videoPublicId, newsDate]
             );
 
             const insertedNews = {
                 id: result.insertId,
                 title,
                 content,
-                // These are now the full Cloudinary URLs
-                imageUrl: imageUrl,
-                videoUrl: videoUrl,
-                createdAt: dateToInsert,
+                imageUrl,
+                videoUrl,
+                createdAt: new Date(),
+                publishedAt: newsDate
             };
 
             res.status(201).json({
@@ -414,29 +441,24 @@ app.post('/news',
                 data: insertedNews
             });
         } catch (err) {
-            console.error('Create news error:', err);
-            // If DB insertion fails, try to delete the files from Cloudinary
-            if (imageUrl) await deleteFromCloudinary(imageUrl, 'image');
-            if (videoUrl) await deleteFromCloudinary(videoUrl, 'video');
+            logger.error('Create news error', { error: err.message });
+            if (imagePublicId) await deleteFromCloudinary(imagePublicId, 'image');
+            if (videoPublicId) await deleteFromCloudinary(videoPublicId, 'video');
             res.status(500).json({ error: 'Failed to create news: ' + err.message });
         }
     }
 );
 
-// Update Existing News Article (Admin only) - MODIFIED for Cloudinary updates
+// Update Existing News Article
 app.put('/news/:id',
     authenticate,
     upload.fields([
         { name: 'image', maxCount: 1 },
         { name: 'video', maxCount: 1 }
     ]),
-    [
-        body('title').optional().isLength({ min: 5 }).withMessage('Title must be at least 5 characters').trim().escape(),
-        body('content').optional().isLength({ min: 20 }).withMessage('Content must be at least 20 characters').trim().escape(),
-        body('newsDate').optional().isISO8601().toDate().withMessage('Invalid date format for Publication Date.')
-    ],
+    updateNewsRules,
     async (req, res) => {
-        console.log('Route hit: PUT /news/:id (update)');
+        logger.info('Route hit: PUT /news/:id (update)');
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
             return res.status(400).json({ errors: errors.array() });
@@ -446,7 +468,10 @@ app.put('/news/:id',
             const newsId = req.params.id;
             const { title, content, clearImage, clearVideo, newsDate } = req.body;
 
-            const [existingNewsRows] = await pool.query('SELECT image, video FROM news WHERE id = ?', [newsId]);
+            const [existingNewsRows] = await pool.query(
+                'SELECT image, imagePublicId, video, videoPublicId FROM news WHERE id = ?', 
+                [newsId]
+            );
             const existingNews = existingNewsRows[0];
 
             if (!existingNews) {
@@ -454,36 +479,39 @@ app.put('/news/:id',
             }
 
             let imageToUpdate = existingNews.image;
+            let imagePublicIdToUpdate = existingNews.imagePublicId;
             let videoToUpdate = existingNews.video;
+            let videoPublicIdToUpdate = existingNews.videoPublicId;
 
-            // --- Handle Image Update ---
             if (req.files?.image?.[0]) {
-                if (existingNews.image) {
-                    await deleteFromCloudinary(existingNews.image, 'image');
+                if (existingNews.imagePublicId) {
+                    await deleteFromCloudinary(existingNews.imagePublicId, 'image');
                 }
-                // Pass the full file object, not just the buffer
-                imageToUpdate = await uploadToCloudinary(req.files.image[0], 'image', 'hortimed-news-images');
+                const result = await uploadToCloudinary(req.files.image[0], 'image', 'hortimed-news-images');
+                imageToUpdate = result.url;
+                imagePublicIdToUpdate = result.publicId;
             } else if (clearImage === 'true') {
-                if (existingNews.image) {
-                    await deleteFromCloudinary(existingNews.image, 'image');
+                if (existingNews.imagePublicId) {
+                    await deleteFromCloudinary(existingNews.imagePublicId, 'image');
                 }
                 imageToUpdate = null;
+                imagePublicIdToUpdate = null;
             }
 
-            // --- Handle Video Update ---
             if (req.files?.video?.[0]) {
-                if (existingNews.video) {
-                    await deleteFromCloudinary(existingNews.video, 'video');
+                if (existingNews.videoPublicId) {
+                    await deleteFromCloudinary(existingNews.videoPublicId, 'video');
                 }
-                // Pass the full file object, not just the buffer
-                videoToUpdate = await uploadToCloudinary(req.files.video[0], 'video', 'hortimed-news-videos');
+                const result = await uploadToCloudinary(req.files.video[0], 'video', 'hortimed-news-videos');
+                videoToUpdate = result.url;
+                videoPublicIdToUpdate = result.publicId;
             } else if (clearVideo === 'true') {
-                if (existingNews.video) {
-                    await deleteFromCloudinary(existingNews.video, 'video');
+                if (existingNews.videoPublicId) {
+                    await deleteFromCloudinary(existingNews.videoPublicId, 'video');
                 }
                 videoToUpdate = null;
+                videoPublicIdToUpdate = null;
             }
-            // --- END Handle Media Updates ---
 
             const updateFields = [];
             const updateValues = [];
@@ -497,14 +525,12 @@ app.put('/news/:id',
                 updateValues.push(content);
             }
             if (newsDate !== undefined) {
-                updateFields.push('createdAt = ?');
+                updateFields.push('publishedAt = ?');
                 updateValues.push(newsDate);
             }
 
-            updateFields.push('image = ?');
-            updateValues.push(imageToUpdate);
-            updateFields.push('video = ?');
-            updateValues.push(videoToUpdate);
+            updateFields.push('image = ?', 'imagePublicId = ?', 'video = ?', 'videoPublicId = ?');
+            updateValues.push(imageToUpdate, imagePublicIdToUpdate, videoToUpdate, videoPublicIdToUpdate);
 
             if (updateFields.length === 0) {
                 return res.status(400).json({ error: 'No update data provided.' });
@@ -516,7 +542,7 @@ app.put('/news/:id',
             );
 
             const [updatedNewsRows] = await pool.query(`
-                SELECT id, title, content, image as imageUrl, video as videoUrl, createdAt
+                SELECT id, title, content, image as imageUrl, video as videoUrl, createdAt, publishedAt
                 FROM news WHERE id = ?
             `, [newsId]);
 
@@ -526,52 +552,60 @@ app.put('/news/:id',
                 data: updatedNewsRows[0]
             });
         } catch (err) {
-            console.error('Update news error:', err);
+            logger.error('Update news error', { error: err.message });
             res.status(500).json({ error: 'Failed to update news: ' + err.message });
         }
     }
 );
 
-// Delete News Article (Admin only) - MODIFIED for Cloudinary deletion
+// Delete News Article (uses stored publicId)
 app.delete('/news/:id', authenticate, async (req, res) => {
-    console.log('Route hit: DELETE /news/:id');
+    logger.info('Route hit: DELETE /news/:id');
     try {
         const newsId = req.params.id;
 
-        const [existingNewsRows] = await pool.query('SELECT image, video FROM news WHERE id = ?', [newsId]);
+        const [existingNewsRows] = await pool.query(
+            'SELECT imagePublicId, videoPublicId FROM news WHERE id = ?', 
+            [newsId]
+        );
         const existingNews = existingNewsRows[0];
 
         if (!existingNews) {
             return res.status(404).json({ error: 'Article not found.' });
         }
 
-        // --- Delete associated files from Cloudinary ---
-        if (existingNews.image) {
-            await deleteFromCloudinary(existingNews.image, 'image');
+        if (existingNews.imagePublicId) {
+            await deleteFromCloudinary(existingNews.imagePublicId, 'image');
         }
-        if (existingNews.video) {
-            await deleteFromCloudinary(existingNews.video, 'video');
+        if (existingNews.videoPublicId) {
+            await deleteFromCloudinary(existingNews.videoPublicId, 'video');
         }
-        // --- END Cloudinary Deletion ---
 
         await pool.query('DELETE FROM news WHERE id = ?', [newsId]);
 
         res.json({
             success: true,
             message: 'Article deleted successfully!',
-            data: existingNews
+            data: { id: newsId }
         });
     } catch (err) {
-        console.error('Delete news error:', err);
+        logger.error('Delete news error', { error: err.message });
         res.status(500).json({ error: 'Failed to delete news.' });
     }
 });
 
+// ==========================================
+// 12. 404 Handler
+// ==========================================
+app.use((req, res) => {
+    res.status(404).json({ error: 'Route not found.' });
+});
 
-// --- Error Handling Middleware ---
-
+// ==========================================
+// 13. Global Error Handler
+// ==========================================
 app.use((err, req, res, next) => {
-    console.error('Global error handler caught:', err.stack);
+    logger.error('Global error handler caught', { error: err.message, stack: err.stack });
 
     if (err instanceof multer.MulterError) {
         return res.status(400).json({ error: `File upload error: ${err.message}` });
@@ -583,10 +617,22 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'An unexpected error occurred on the server.' });
 });
 
-// --- Server Startup ---
+// ==========================================
+// 14. Process-Level Error Handlers
+// ==========================================
+process.on('uncaughtException', (err) => {
+    logger.error('Uncaught Exception', { error: err.message, stack: err.stack });
+    setTimeout(() => process.exit(1), 1000);
+});
 
+process.on('unhandledRejection', (reason) => {
+    logger.error('Unhandled Rejection', { reason: reason?.message || reason });
+});
+
+// ==========================================
+// Server Startup
+// ==========================================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`🌐 Frontend should access API at: ${process.env.BASE_URL || `http://localhost:${PORT}`}`);
+    logger.info('Server started', { port: PORT, baseUrl: process.env.BASE_URL || `http://localhost:${PORT}` });
 });
